@@ -5,6 +5,7 @@
 #include "PlayerControl.h"
 #include "DanmakuPanel.h"
 #include "DanmakuWindow.h"
+#include "SettingsDialog.h"
 #include "core/BilibiliApi.h"
 #include "core/AuthManager.h"
 #include "core/LiveMonitor.h"
@@ -33,11 +34,9 @@ MainWindow::MainWindow(QWidget *parent)
     m_danmaku = new DanmakuManager(m_api, this);
 
     setupUI();
+    m_danmakuWindow = new DanmakuWindow;
     setupConnections();
     restoreSession();
-
-    m_danmakuWindow = new DanmakuWindow;
-    m_danmakuWindow->show();
 
     m_tray = new TrayManager(this);
     connect(m_tray, &TrayManager::showWindowRequested, this, [this] {
@@ -73,6 +72,19 @@ void MainWindow::setupUI()
     topBar->addStretch();
     topBar->addWidget(m_loginBtn);
     topBar->addWidget(m_logoutBtn);
+
+    m_popOutBtn = new QPushButton("弹出弹幕框");
+    m_popOutBtn->setStyleSheet("background-color: #444;");
+    topBar->addWidget(m_popOutBtn);
+
+    auto *settingsBtn = new QPushButton("设置");
+    settingsBtn->setStyleSheet("background-color: #444;");
+    topBar->addWidget(settingsBtn);
+    connect(settingsBtn, &QPushButton::clicked, this, [this] {
+        SettingsDialog dlg(this);
+        dlg.exec();
+    });
+
     mainLayout->addLayout(topBar);
 
     // Content area
@@ -231,6 +243,17 @@ void MainWindow::setupConnections()
     });
     connect(m_danmaku, &DanmakuManager::logMessage, this, &MainWindow::appendLog);
     connect(m_danmakuPanel, &DanmakuPanel::sendDanmakuRequested, m_danmaku, &DanmakuManager::sendDanmaku);
+    connect(m_danmakuWindow, &DanmakuWindow::sendDanmakuRequested, m_danmaku, &DanmakuManager::sendDanmaku);
+
+    // Pop-out / close danmaku window
+    connect(m_popOutBtn, &QPushButton::clicked, this, [this] {
+        m_danmakuPanel->setVisible(false);
+        m_danmakuWindow->setVisible(true);
+    });
+    connect(m_danmakuWindow, &DanmakuWindow::closed, this, [this] {
+        m_danmakuWindow->setVisible(false);
+        m_danmakuPanel->setVisible(true);
+    });
 
     // Live monitor
     connect(m_monitor, &LiveMonitor::liveListUpdated, m_liveList, &LiveListWidget::updateList);

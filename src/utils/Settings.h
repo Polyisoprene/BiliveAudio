@@ -21,6 +21,12 @@ public:
     qint64 lastRoomId() const;
     void setLastRoomId(qint64 roomId);
 
+    QString logDir() const;
+    void setLogDir(const QString &dir);
+
+    int logRetentionDays() const;
+    void setLogRetentionDays(int days);
+
 private:
     Settings();
     static QString configPath();

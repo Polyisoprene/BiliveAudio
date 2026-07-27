@@ -6,11 +6,12 @@
 #include <spdlog/sinks/daily_file_sink.h>
 #include <memory>
 #include <QString>
+#include <QStandardPaths>
 #include <filesystem>
 
 class Logger {
 public:
-    static void init(const std::string &logDir = {})
+    static void init(const std::string &logDir = {}, int retentionDays = 7)
     {
         std::string dir = logDir.empty() ? defaultLogDir() : logDir;
         std::filesystem::create_directories(dir);
@@ -19,7 +20,7 @@ public:
 
         auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         auto fileSink = std::make_shared<spdlog::sinks::daily_file_sink_mt>(
-            dir + "/app.log", 0, 0, false, 7);
+            dir + "/app.log", 0, 0, false, retentionDays);
 
         std::vector<spdlog::sink_ptr> sinks{consoleSink, fileSink};
         auto logger = std::make_shared<spdlog::async_logger>(
@@ -36,8 +37,8 @@ public:
 private:
     static std::string defaultLogDir()
     {
-        auto home = std::getenv("HOME");
-        return (std::string(home ? home : ".") + "/.biliveaudio/logs");
+        QString path = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/logs";
+        return path.toStdString();
     }
 };
 

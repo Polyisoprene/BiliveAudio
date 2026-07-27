@@ -80,3 +80,24 @@ void Settings::setLastRoomId(qint64 roomId)
 {
     m_settings.setValue("room/lastId", roomId);
 }
+
+QString Settings::logDir() const
+{
+    QString def = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/logs";
+    return m_settings.value("log/dir", def).toString();
+}
+
+void Settings::setLogDir(const QString &dir)
+{
+    m_settings.setValue("log/dir", dir);
+}
+
+int Settings::logRetentionDays() const
+{
+    return m_settings.value("log/retention", 7).toInt();
+}
+
+void Settings::setLogRetentionDays(int days)
+{
+    m_settings.setValue("log/retention", qMax(1, days));
+}

@@ -12,11 +12,11 @@ int main(int argc, char *argv[])
     app.setOrganizationName("BiliveAudio");
     app.setQuitOnLastWindowClosed(false);
 
-    Logger::init();
+    auto &settings = Settings::instance();
+    Logger::init(settings.logDir().toStdString(), settings.logRetentionDays());
     LOG_INFO("=== BiliveAudio starting ===");
 
     MainWindow window;
-    auto &settings = Settings::instance();
 
     // Restore window geometry
     int wx = settings.windowX();
