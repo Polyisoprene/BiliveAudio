@@ -1,0 +1,14 @@
+build/
+*.o
+*.obj
+*.exe
+*.app
+moc_*
+qrc_*
+ui_*
+cmake-build-*
+.vscode/
+.idea/
+*.swp
+*.user
+Thumbs.db

@@ -1,0 +1,10 @@
+{
+  "name": "biliveaudio",
+  "version": "1.0.0",
+  "dependencies": [
+    "mpv",
+    "spdlog",
+    "qrencode",
+    "brotli"
+  ]
+}
