@@ -451,3 +451,17 @@ void BilibiliApi::sendLiveDanmaku(qint64 roomId, const QString &text)
             emit requestError("sendDanmaku", QString("code=%1 %2").arg(code).arg(obj["message"].toString()));
     });
 }
+
+void BilibiliApi::fetchUserFace(qint64 uid)
+{
+    auto *reply = get(QString("%1/x/space/acc/info?mid=%2").arg(BASE_API).arg(uid));
+    connect(reply, &QNetworkReply::finished, this, [this, reply, uid] {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) return;
+        auto doc = QJsonDocument::fromJson(reply->readAll());
+        auto data = doc.object()["data"].toObject();
+        QString face = data["face"].toString();
+        if (!face.isEmpty())
+            emit userFaceReady(uid, face);
+    });
+}

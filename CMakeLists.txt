@@ -35,6 +35,7 @@ set(SOURCES
     src/ui/LiveListWidget.cpp
     src/ui/PlayerControl.cpp
     src/ui/TrayManager.cpp
+    src/ui/DanmakuBubble.cpp
     src/ui/DanmakuPanel.cpp
     src/ui/DanmakuWindow.cpp
     src/ui/SettingsDialog.cpp
@@ -52,6 +53,7 @@ set(HEADERS
     src/ui/LiveListWidget.h
     src/ui/PlayerControl.h
     src/ui/TrayManager.h
+    src/ui/DanmakuBubble.h
     src/ui/DanmakuPanel.h
     src/ui/DanmakuWindow.h
     src/ui/SettingsDialog.h

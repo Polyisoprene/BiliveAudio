@@ -13,3 +13,4 @@ cmake-build-*
 *.user
 Thumbs.db
 .codegraph/
+build-meson/

@@ -67,6 +67,7 @@ void LiveMonitor::onFollowedList(const QList<FollowedUser> &users, bool hasMore)
 void LiveMonitor::onLiveStatus(const QMap<qint64, LiveRoom> &rooms)
 {
     m_fetching = false;
+    m_liveRooms.clear();
     int liveCount = 0;
     for (auto it = rooms.begin(); it != rooms.end(); ++it)
         if (it.value().isLive) liveCount++;

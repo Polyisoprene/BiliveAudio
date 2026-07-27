@@ -3,6 +3,7 @@
 #include <QWebSocket>
 #include <QTimer>
 #include <QMap>
+#include <QMap>
 #include "models/Danmaku.h"
 #include "BilibiliApi.h"
 
@@ -11,6 +12,9 @@ class DanmakuManager : public QObject {
 public:
     explicit DanmakuManager(BilibiliApi *api, QObject *parent = nullptr);
     ~DanmakuManager() override;
+
+    static QMap<QString, QString> faceCache;
+    static void fetchFace(BilibiliApi *api, const Danmaku &dm);
 
     void connectRoom(qint64 roomId);
     void disconnectRoom();

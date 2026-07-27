@@ -24,6 +24,8 @@ static const int OPERATION_AUTH = 7;
 static const int OPERATION_AUTH_REPLY = 8;
 static const int OPERATION_MESSAGE = 5;
 
+QMap<QString, QString> DanmakuManager::faceCache;
+
 DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
     : QObject(parent), m_api(api)
 {
@@ -37,6 +39,9 @@ DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
 
     connect(m_reconnectTimer, &QTimer::timeout, this, &DanmakuManager::tryReconnect);
     connect(m_api, &BilibiliApi::danmuInfoReady, this, &DanmakuManager::onDanmuInfoReady);
+    connect(m_api, &BilibiliApi::userFaceReady, this, [this](qint64 uid, const QString &url) {
+        faceCache[QString::number(uid)] = url;
+    });
 }
 
 void DanmakuManager::ensureWebSocket()
@@ -291,12 +296,30 @@ void DanmakuManager::handleDanmuMsg(const QJsonArray &info)
     if (userInfo.size() > 7)
         dm.faceUrl = userInfo[7].toString();
 
-    // Fans medal from info[3]
-    if (info.size() > 3 && info[3].isObject()) {
-        auto medal = info[3].toObject();
-        dm.medalName = medal["medal_name"].toString();
-        dm.medalLevel = medal["medal_level"].toInt();
-        dm.medalColor = QColor::fromRgb(medal["medal_color"].toInt(12632256));
+    // Fetch face via API if not in WebSocket data
+    if (dm.faceUrl.isEmpty() && !dm.uid.isEmpty()) {
+        if (faceCache.contains(dm.uid))
+            dm.faceUrl = faceCache[dm.uid];
+        else
+            m_api->fetchUserFace(dm.uid.toLongLong());
+    }
+
+    // Fans medal from info[3] — can be an object or array
+    if (info.size() > 3) {
+        if (info[3].isObject()) {
+            auto medal = info[3].toObject();
+            dm.medalName = medal["medal_name"].toString();
+            dm.medalLevel = medal["medal_level"].toInt();
+            dm.medalColor = QColor::fromRgb(medal["medal_color"].toInt(12632256));
+        } else if (info[3].isArray()) {
+            auto arr = info[3].toArray();
+            if (arr.size() >= 2) {
+                dm.medalLevel = arr[0].toInt();
+                dm.medalName = arr[1].toString();
+                if (arr.size() >= 5)
+                    dm.medalColor = QColor::fromRgb(arr[4].toInt(12632256));
+            }
+        }
     }
 
     emit danmakuReceived(dm);

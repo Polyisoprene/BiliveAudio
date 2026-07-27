@@ -1,14 +1,13 @@
 #pragma once
 #include <QWidget>
-#include <QTextEdit>
+#include <QListWidget>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QLabel>
-#include <QVector>
-#include <QMap>
-#include <QPixmap>
-#include <QNetworkAccessManager>
+#include <QQueue>
 #include "models/Danmaku.h"
+
+class QPropertyAnimation; // forward declaration
 
 class DanmakuPanel : public QWidget {
     Q_OBJECT
@@ -23,13 +22,17 @@ signals:
     void sendDanmakuRequested(const QString &text);
 
 private:
-    QString ensureAvatar(const QString &uid, const QString &url);
+    void insertDanmaku(const Danmaku &dm);
+    void flushBuffer();
 
-    QTextEdit *m_display = nullptr;
+    QListWidget *m_list = nullptr;
     QLineEdit *m_input = nullptr;
     QPushButton *m_sendBtn = nullptr;
     QLabel *m_statusLabel = nullptr;
-    QNetworkAccessManager *m_avatarNam = nullptr;
-    QMap<QString, QPixmap> m_avatarPixmaps;
+    QPropertyAnimation *m_scrollAnim = nullptr;
+    QTimer *m_flushTimer = nullptr;
+    QQueue<Danmaku> m_buffer;
+    bool m_programmaticScroll = false;
+    bool m_scrollLocked = false;
     int m_maxLines = 200;
 };

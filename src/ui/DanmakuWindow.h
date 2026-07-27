@@ -1,23 +1,22 @@
 #pragma once
 #include <QWidget>
-#include <QTextEdit>
-#include <QSlider>
+#include <QListWidget>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMouseEvent>
 #include <QCloseEvent>
 #include <QEvent>
-#include <QMap>
-#include <QPixmap>
-#include <QNetworkAccessManager>
+#include <QQueue>
 #include "models/Danmaku.h"
+
+class QPropertyAnimation;
 
 class DanmakuWindow : public QWidget {
     Q_OBJECT
 public:
     explicit DanmakuWindow(QWidget *parent = nullptr);
     void addDanmaku(const Danmaku &dm);
-    void clear() { m_display->clear(); }
+    void clear() { m_list->clear(); }
     void setConnected(bool connected);
 
 signals:
@@ -33,17 +32,19 @@ protected:
 
 private:
     void onSendClicked();
-    QString ensureAvatar(const QString &uid, const QString &url);
+    void insertDanmaku(const Danmaku &dm);
+    void flushBuffer();
 
-    QTextEdit *m_display = nullptr;
+    QListWidget *m_list = nullptr;
     QLineEdit *m_input = nullptr;
-    QSlider *m_opacitySlider = nullptr;
     QLabel *m_statusLabel = nullptr;
+    QPropertyAnimation *m_scrollAnim = nullptr;
+    QTimer *m_flushTimer = nullptr;
+    QQueue<Danmaku> m_buffer;
+    bool m_programmaticScroll = false;
+    bool m_scrollLocked = false;
     QPoint m_dragPos;
-    double m_opacity = 0.85;
     int m_maxLines = 200;
-    QNetworkAccessManager *m_avatarNam = nullptr;
-    QMap<QString, QPixmap> m_avatarPixmaps;
 
     QColor contrastColor(const QColor &bg) const;
 };

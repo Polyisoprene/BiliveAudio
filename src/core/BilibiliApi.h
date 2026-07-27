@@ -25,6 +25,7 @@ public:
     void getStreamUrl(qint64 roomId, qint64 cid);
     void getDanmuInfo(qint64 roomId);
     void sendLiveDanmaku(qint64 roomId, const QString &text);
+    void fetchUserFace(qint64 uid);
 
 signals:
     void qrCodeFetched(const QString &url, const QString &key);
@@ -37,6 +38,7 @@ signals:
     void danmuInfoReady(qint64 roomId, const QStringList &wsUrls, const QString &token);
     void requestError(const QString &context, const QString &error);
     void cookieUpdated(const QString &cookie);
+    void userFaceReady(qint64 uid, const QString &url);
 
 private:
     QNetworkAccessManager *m_nam = nullptr;
