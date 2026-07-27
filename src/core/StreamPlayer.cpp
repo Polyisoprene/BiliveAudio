@@ -1,9 +1,7 @@
 #include "StreamPlayer.h"
 #include "utils/Logger.h"
 #include <QTimer>
-#ifndef BILIVE_AUDIO_WINDOWS
 #include <mpv/client.h>
-#endif
 #ifdef __linux__
 #include <malloc.h>
 #endif
@@ -11,24 +9,16 @@
 StreamPlayer::StreamPlayer(QObject *parent)
     : QObject(parent)
 {
-#ifndef BILIVE_AUDIO_WINDOWS
     initMpv();
-#else
-    LOG_INFO("mpv not available — audio playback disabled on Windows");
-#endif
 }
 
 StreamPlayer::~StreamPlayer()
 {
-#ifndef BILIVE_AUDIO_WINDOWS
     if (m_mpv) {
         mpv_command_string(m_mpv, "stop");
         mpv_destroy(m_mpv);
     }
-#endif
 }
-
-#ifndef BILIVE_AUDIO_WINDOWS
 
 void StreamPlayer::initMpv()
 {
@@ -166,17 +156,3 @@ void StreamPlayer::setVolume(int percent)
 }
 
 int StreamPlayer::volume() const { return m_volume; }
-
-#else // BILIVE_AUDIO_WINDOWS — stub implementations
-
-void StreamPlayer::play(const QString &streamUrl) {
-    Q_UNUSED(streamUrl);
-    emit error("Audio playback not available on Windows");
-}
-void StreamPlayer::stop() { m_playing = false; emit stopped("stopped"); }
-void StreamPlayer::pause() {}
-void StreamPlayer::resume() {}
-void StreamPlayer::setVolume(int percent) { m_volume = qBound(0, percent, 100); Q_UNUSED(percent); }
-int StreamPlayer::volume() const { return m_volume; }
-
-#endif // BILIVE_AUDIO_WINDOWS

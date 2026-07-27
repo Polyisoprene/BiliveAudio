@@ -1,9 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QString>
-#ifndef BILIVE_AUDIO_WINDOWS
 #include <mpv/client.h>
-#endif
 
 class StreamPlayer : public QObject {
     Q_OBJECT
@@ -28,13 +26,11 @@ signals:
     void positionChanged(double seconds);
 
 private:
-#ifndef BILIVE_AUDIO_WINDOWS
     mpv_handle *m_mpv = nullptr;
     void initMpv();
     void handleEvent(mpv_event *event);
     static void onMpvWakeup(void *ctx);
     void processEvents();
-#endif
     bool m_playing = false;
     int m_volume = 80;
 };

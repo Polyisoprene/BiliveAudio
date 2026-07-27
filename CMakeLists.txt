@@ -11,11 +11,11 @@ find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebSockets)
 find_package(spdlog REQUIRED)
 
 if(WIN32)
+    find_package(mpv CONFIG REQUIRED)
     find_package(unofficial-brotli CONFIG REQUIRED)
     find_path(QRENCODE_INCLUDE_DIR NAMES qrencode.h REQUIRED)
     find_library(QRENCODE_LIBRARY_RELEASE qrencode REQUIRED)
     find_library(QRENCODE_LIBRARY_DEBUG qrencoded)
-    add_compile_definitions(BILIVE_AUDIO_WINDOWS=1)
 else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
@@ -76,6 +76,7 @@ if(WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets
         spdlog::spdlog
+        mpv::mpv
         unofficial::brotli::brotlidec
         optimized ${QRENCODE_LIBRARY_RELEASE}
         debug ${QRENCODE_LIBRARY_DEBUG}
