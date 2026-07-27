@@ -1,6 +1,6 @@
 # BiliveAudio
 
-Bilibili 直播音频客户端 — CPU/内存占用极低。
+Bilibili 直播音频客户端
 
 ## 功能
 
