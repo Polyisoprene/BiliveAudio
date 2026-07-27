@@ -41,7 +41,7 @@ jobs:
           [Desktop Entry]
           Name=BiliveAudio
           Comment=Bilibili Live Audio Player
-          Exec=bilibiliaudio
+          Exec=BiliveAudio
           Icon=biliveaudio
           Type=Application
           Categories=Audio;Network;
@@ -61,9 +61,9 @@ jobs:
           /tmp/linuxdeploy --appdir AppDir --plugin qt --output appimage
 
       - name: Upload release
-        uses: svenstaro/upload-release-action@v2
+        uses: softprops/action-gh-release@v2
         with:
-          file: BiliveAudio-x86_64.AppImage
+          files: BiliveAudio-x86_64.AppImage
           tag: ${{ github.ref }}
 
   windows:
@@ -102,7 +102,7 @@ jobs:
           Compress-Archive -Path build/Release/* -DestinationPath BiliveAudio-windows.zip
 
       - name: Upload release
-        uses: svenstaro/upload-release-action@v2
+        uses: softprops/action-gh-release@v2
         with:
-          file: BiliveAudio-windows.zip
+          files: BiliveAudio-windows.zip
           tag: ${{ github.ref }}
