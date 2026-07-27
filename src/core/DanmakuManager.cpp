@@ -27,7 +27,12 @@ DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
     connect(m_ws, &QWebSocket::connected, this, &DanmakuManager::onConnected);
     connect(m_ws, &QWebSocket::disconnected, this, &DanmakuManager::onDisconnected);
     connect(m_ws, &QWebSocket::binaryMessageReceived, this, &DanmakuManager::onBinaryMessage);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     connect(m_ws, &QWebSocket::errorOccurred, this, &DanmakuManager::onError);
+#else
+    connect(m_ws, QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error),
+            this, &DanmakuManager::onError);
+#endif
     connect(m_heartbeatTimer, &QTimer::timeout, this, &DanmakuManager::sendHeartbeat);
 
     connect(m_api, &BilibiliApi::danmuInfoReady, this, &DanmakuManager::onDanmuInfoReady);
