@@ -103,12 +103,17 @@ jobs:
           if (-not $asset) { throw "No matching mpv MSVC asset found" }
           $url = $asset.browser_download_url
           Write-Host "Downloading $url"
-          curl.exe -sL -o mpv.zip "$url" --connect-timeout 30 --max-time 180
-          if (-not (Test-Path mpv.zip)) { throw "Download failed: mpv.zip not found" }
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+          Invoke-WebRequest -Uri $url -OutFile mpv.zip -UseBasicParsing
+          $zipSize = (Get-Item mpv.zip).Length
+          if ($zipSize -lt 1000) { throw "Downloaded zip too small ($zipSize bytes)" }
           Expand-Archive -Path mpv.zip -DestinationPath mpv_temp
-          $mpvDir = (Get-ChildItem -Path mpv_temp -Directory)[0].FullName
-          echo "MPV_DIR=$mpvDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $dirs = Get-ChildItem -Path mpv_temp -Directory
+          $mpvDir = if ($dirs) { $dirs[0].FullName } else { "$(Resolve-Path mpv_temp)" }
           Write-Host "mpv dir: $mpvDir"
+          Get-ChildItem -Path $mpvDir -Recurse -Depth 2
+          if (-not (Test-Path "$mpvDir/include/mpv/client.h")) { throw "mpv/client.h not found" }
+          echo "MPV_DIR=$mpvDir" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build
         run: |
