@@ -21,9 +21,10 @@ public:
 
 signals:
     void started();
-    void stopped();
+    void stopped(const QString &reason);
     void paused();
     void error(const QString &msg);
+    void logMessage(const QString &msg);
     void positionChanged(double seconds);
 
 private:

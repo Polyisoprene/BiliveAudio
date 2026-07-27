@@ -24,6 +24,7 @@ public:
     void getRoomInfo(qint64 roomId);
     void getStreamUrl(qint64 roomId, qint64 cid);
     void getDanmuInfo(qint64 roomId);
+    void sendLiveDanmaku(qint64 roomId, const QString &text);
 
 signals:
     void qrCodeFetched(const QString &url, const QString &key);
@@ -33,16 +34,21 @@ signals:
     void liveStatusReady(const QMap<qint64, LiveRoom> &rooms);
     void roomInfoReady(qint64 roomId, qint64 uid, const QString &title, qint64 cid);
     void streamUrlReady(qint64 roomId, const QString &url);
-    void danmuInfoReady(qint64 roomId, const QStringList &hosts, const QString &token);
+    void danmuInfoReady(qint64 roomId, const QStringList &wsUrls, const QString &token);
     void requestError(const QString &context, const QString &error);
+    void cookieUpdated(const QString &cookie);
 
 private:
     QNetworkAccessManager *m_nam = nullptr;
     QString m_cookie;
     QString m_csrfToken;
+    QString m_mixinKey;
 
     QNetworkReply *get(const QString &url);
     QNetworkReply *post(const QString &url, const QByteArray &body);
     QNetworkReply *postJson(const QString &url, const QJsonObject &json);
     void addCookie(QNetworkRequest &request) const;
+    void mergeCookies(QNetworkReply *reply);
+    void computeMixinKey(const QString &imgKey, const QString &subKey);
+    QString signUrl(const QString &url) const;
 };

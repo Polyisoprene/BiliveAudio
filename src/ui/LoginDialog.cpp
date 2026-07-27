@@ -25,6 +25,7 @@ LoginDialog::LoginDialog(BilibiliApi *api, QWidget *parent)
     m_qrLabel = new QLabel;
     m_qrLabel->setFixedSize(260, 260);
     m_qrLabel->setAlignment(Qt::AlignCenter);
+    m_qrLabel->setScaledContents(true);
     m_qrLabel->setStyleSheet("border: 1px solid #333; background: white;");
     layout->addWidget(m_qrLabel, 0, Qt::AlignCenter);
 
@@ -72,8 +73,9 @@ void LoginDialog::onQRCodeFetched(const QString &url, const QString &key)
         return;
     }
 
-    int scale = 8;
-    QImage qrImage(qr->width * scale + 20, qr->width * scale + 20, QImage::Format_RGB32);
+    int margin = 10;
+    int scale = qMax(2, (260 - margin * 2) / qr->width);
+    QImage qrImage(qr->width * scale + margin * 2, qr->width * scale + margin * 2, QImage::Format_RGB32);
     qrImage.fill(Qt::white);
     QPainter painter(&qrImage);
     painter.setBrush(Qt::black);
@@ -82,7 +84,7 @@ void LoginDialog::onQRCodeFetched(const QString &url, const QString &key)
     for (int y = 0; y < qr->width; y++) {
         for (int x = 0; x < qr->width; x++) {
             if (qr->data[y * qr->width + x] & 0x01)
-                painter.drawRect(x * scale + 10, y * scale + 10, scale, scale);
+                painter.drawRect(x * scale + margin, y * scale + margin, scale, scale);
         }
     }
     painter.end();

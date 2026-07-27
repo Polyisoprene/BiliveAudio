@@ -41,15 +41,22 @@ void StreamPlayer::initMpv()
     mpv_set_option_string(m_mpv, "vo", "null");
     mpv_set_option_string(m_mpv, "video", "no");
 
+    mpv_set_option_string(m_mpv, "referrer", "https://live.bilibili.com/");
+    mpv_set_option_string(m_mpv, "user-agent",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36");
+
     mpv_set_option_string(m_mpv, "cache", "yes");
     mpv_set_option_string(m_mpv, "cache-secs", "5");
     mpv_set_option_string(m_mpv, "demuxer-max-bytes", "5MiB");
     mpv_set_option_string(m_mpv, "demuxer-readahead-secs", "2");
     mpv_set_option_string(m_mpv, "stream-lavf-o",
-                          "reconnect=1:reconnect_streamed=1:reconnect_delay_max=5");
+                          "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5");
 
     mpv_set_option_string(m_mpv, "profile", "low-latency");
     mpv_set_option_string(m_mpv, "no-audio-display", "yes");
+    mpv_set_option_string(m_mpv, "ytdl", "no");
+
+    mpv_set_option_string(m_mpv, "msg-level", "all=info");
 
     if (mpv_initialize(m_mpv) < 0) {
         LOG_CRITICAL("Failed to initialize mpv");
@@ -58,6 +65,7 @@ void StreamPlayer::initMpv()
         return;
     }
 
+    mpv_request_log_messages(m_mpv, "info");
     mpv_set_wakeup_callback(m_mpv, onMpvWakeup, this);
     LOG_INFO("mpv initialized");
 }
@@ -81,16 +89,32 @@ void StreamPlayer::processEvents()
 void StreamPlayer::handleEvent(mpv_event *event)
 {
     switch (event->event_id) {
+    case MPV_EVENT_LOG_MESSAGE: {
+        auto *msg = static_cast<mpv_event_log_message *>(event->data);
+        emit logMessage(QString("mpv[%1] %2").arg(msg->prefix, msg->text));
+        break;
+    }
     case MPV_EVENT_START_FILE:
         LOG_INFO("mpv: started playback");
         m_playing = true;
         emit started();
         break;
-    case MPV_EVENT_END_FILE:
-        LOG_INFO("mpv: playback ended (reason={})", event->error);
+    case MPV_EVENT_END_FILE: {
+        int reason = event->error;
+        const char *reasonStr = "unknown";
+        switch (reason) {
+        case 0: reasonStr = "EOF"; break;
+        case 1: reasonStr = "restart"; break;
+        case 2: reasonStr = "aborted"; break;
+        case 3: reasonStr = "quit"; break;
+        case 4: reasonStr = "error"; break;
+        case 5: reasonStr = "redirect"; break;
+        }
+        LOG_INFO("mpv: playback ended (reason={})", reason);
         m_playing = false;
-        emit stopped();
+        emit stopped(QString("reason=%1(%2)").arg(reason).arg(reasonStr));
         break;
+    }
     default:
         break;
     }
@@ -103,8 +127,9 @@ void StreamPlayer::play(const QString &streamUrl)
         return;
     }
 
-    LOG_INFO("Playing: {}", streamUrl.toStdString());
-    const char *cmd[] = {"loadfile", streamUrl.toUtf8().constData(), "replace", nullptr};
+    emit logMessage(QString("加载流: %1").arg(streamUrl));
+    QByteArray urlData = streamUrl.toUtf8();
+    const char *cmd[] = {"loadfile", urlData.constData(), "replace", nullptr};
     mpv_command_async(m_mpv, 0, cmd);
 }
 
@@ -129,6 +154,8 @@ void StreamPlayer::resume()
 {
     if (!m_mpv) return;
     mpv_set_property_string(m_mpv, "pause", "no");
+    // Seek to end for live streams — play the latest
+    mpv_command_string(m_mpv, "seek 100 absolute-percent");
 }
 
 void StreamPlayer::setVolume(int percent)
@@ -146,7 +173,7 @@ void StreamPlayer::play(const QString &streamUrl) {
     Q_UNUSED(streamUrl);
     emit error("Audio playback not available on Windows");
 }
-void StreamPlayer::stop() { m_playing = false; }
+void StreamPlayer::stop() { m_playing = false; emit stopped("stopped"); }
 void StreamPlayer::pause() {}
 void StreamPlayer::resume() {}
 void StreamPlayer::setVolume(int percent) { m_volume = qBound(0, percent, 100); Q_UNUSED(percent); }

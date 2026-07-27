@@ -3,12 +3,18 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QUuid>
+#include <QRandomGenerator>
+#include <QSslConfiguration>
+#include <QSslSocket>
+#include <QNetworkProxy>
+#include <QSsl>
 #include <QtEndian>
 #include <brotli/decode.h>
 
 // Bilibili WebSocket protocol constants
 static const int HEADER_LENGTH = 16;
-static const int PROTOCOL_VERSION_NORMAL = 0;
+static const int PROTOCOL_VERSION_NORMAL = 1;
 static const int PROTOCOL_VERSION_ZLIB = 2;
 static const int PROTOCOL_VERSION_BROTLI = 3;
 
@@ -21,21 +27,36 @@ static const int OPERATION_MESSAGE = 5;
 DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
     : QObject(parent), m_api(api)
 {
-    m_ws = new QWebSocket(QString(), QWebSocketProtocol::VersionLatest, this);
     m_heartbeatTimer = new QTimer(this);
+    m_reconnectTimer = new QTimer(this);
+    m_reconnectTimer->setSingleShot(true);
 
-    connect(m_ws, &QWebSocket::connected, this, &DanmakuManager::onConnected);
-    connect(m_ws, &QWebSocket::disconnected, this, &DanmakuManager::onDisconnected);
-    connect(m_ws, &QWebSocket::binaryMessageReceived, this, &DanmakuManager::onBinaryMessage);
+    m_buvid = QUuid::createUuid().toString(QUuid::WithoutBraces)
+            + QUuid::createUuid().toString(QUuid::WithoutBraces).left(4)
+            + "infoc";
+
+    connect(m_reconnectTimer, &QTimer::timeout, this, &DanmakuManager::tryReconnect);
+    connect(m_api, &BilibiliApi::danmuInfoReady, this, &DanmakuManager::onDanmuInfoReady);
+}
+
+void DanmakuManager::ensureWebSocket()
+{
+    if (m_ws) return;
+    m_ws = new QWebSocket(QString(), QWebSocketProtocol::VersionLatest, this);
+    m_ws->setProxy(QNetworkProxy::NoProxy);
+    QSslConfiguration ssl = m_ws->sslConfiguration();
+    ssl.setPeerVerifyMode(QSslSocket::VerifyNone);
+    m_ws->setSslConfiguration(ssl);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     connect(m_ws, &QWebSocket::errorOccurred, this, &DanmakuManager::onError);
 #else
     connect(m_ws, QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error),
             this, &DanmakuManager::onError);
 #endif
+    connect(m_ws, &QWebSocket::connected, this, &DanmakuManager::onConnected);
+    connect(m_ws, &QWebSocket::disconnected, this, &DanmakuManager::onDisconnected);
+    connect(m_ws, &QWebSocket::binaryMessageReceived, this, &DanmakuManager::onBinaryMessage);
     connect(m_heartbeatTimer, &QTimer::timeout, this, &DanmakuManager::sendHeartbeat);
-
-    connect(m_api, &BilibiliApi::danmuInfoReady, this, &DanmakuManager::onDanmuInfoReady);
 }
 
 DanmakuManager::~DanmakuManager()
@@ -46,49 +67,73 @@ DanmakuManager::~DanmakuManager()
 void DanmakuManager::connectRoom(qint64 roomId)
 {
     m_roomId = roomId;
+    m_reconnectRetry = 0;
+    emit logMessage(QString("弹幕: 正在获取房间 %1 的服务器信息...").arg(roomId));
     m_api->getDanmuInfo(roomId);
-    LOG_INFO("Connecting to danmu room: {}", roomId);
 }
 
-void DanmakuManager::onDanmuInfoReady(qint64 roomId, const QStringList &hosts, const QString &token)
+void DanmakuManager::onDanmuInfoReady(qint64 roomId, const QStringList &wsUrls, const QString &token)
 {
     if (roomId != m_roomId) return;
 
-    if (hosts.isEmpty()) {
+    if (wsUrls.isEmpty()) {
         LOG_ERROR("No danmu hosts available for room {}", roomId);
+        emit logMessage(QString("弹幕: 未获取到房间 %1 的服务器地址").arg(roomId));
         return;
     }
 
     m_token = token;
-    m_host = hosts.first();
-    QString wsUrl = QString("wss://%1/sub").arg(m_host);
-    LOG_INFO("Connecting to danmu WS: {}", wsUrl.toStdString());
+    int idx = QRandomGenerator::global()->bounded(static_cast<int>(wsUrls.size()));
+    QString wsUrl = wsUrls[idx];
+    emit logMessage(QString("弹幕: 连接 %1...").arg(wsUrl));
+
+    ensureWebSocket();
     m_ws->open(QUrl(wsUrl));
 }
 
 void DanmakuManager::disconnectRoom()
 {
     m_heartbeatTimer->stop();
-    m_ws->close();
+    m_reconnectTimer->stop();
+    m_reconnectRetry = 0;
+    if (m_ws) m_ws->close();
     m_connected = false;
     m_roomId = 0;
-    LOG_INFO("Disconnected from danmu room");
 }
 
 void DanmakuManager::onConnected()
 {
-    LOG_INFO("Danmu WebSocket connected");
+    emit logMessage("弹幕: WebSocket 已连接，发送认证包...");
 
-    // Send auth packet
     QJsonObject auth;
-    auth["uid"] = 0;
+    auth["uid"] = m_uid;
     auth["roomid"] = m_roomId;
-    auth["protover"] = 2;
+    auth["protover"] = PROTOCOL_VERSION_BROTLI;
+    auth["buvid"] = m_buvid;
     auth["platform"] = "web";
     auth["type"] = 2;
     if (!m_token.isEmpty())
-        auth["token"] = m_token;
-    sendPacket(OPERATION_AUTH, QJsonDocument(auth).toJson(QJsonDocument::Compact));
+        auth["key"] = m_token;
+    QByteArray authBody = QJsonDocument(auth).toJson(QJsonDocument::Compact);
+    emit logMessage(QString("弹幕auth JSON(%1B): %2").arg(authBody.size()).arg(QString::fromUtf8(authBody.left(80))));
+
+    int totalLen = HEADER_LENGTH + authBody.size();
+    QByteArray packet(totalLen, Qt::Uninitialized);
+    qint32 netLen = qToBigEndian<qint32>(totalLen);
+    memcpy(packet.data(), &netLen, 4);
+    qint16 headerLen = qToBigEndian<qint16>(HEADER_LENGTH);
+    memcpy(packet.data() + 4, &headerLen, 2);
+    qint16 protoVer = qToBigEndian<qint16>(PROTOCOL_VERSION_NORMAL);
+    memcpy(packet.data() + 6, &protoVer, 2);
+    qint32 netOp = qToBigEndian<qint32>(OPERATION_AUTH);
+    memcpy(packet.data() + 8, &netOp, 4);
+    qint32 seq = qToBigEndian<qint32>(1);
+    memcpy(packet.data() + 12, &seq, 4);
+    if (!authBody.isEmpty())
+        memcpy(packet.data() + HEADER_LENGTH, authBody.constData(), authBody.size());
+
+    emit logMessage(QString("弹幕包(%1B): %2").arg(packet.size()).arg(packet.toHex().left(40)));
+    m_ws->sendBinaryMessage(packet);
 }
 
 void DanmakuManager::onDisconnected()
@@ -96,16 +141,31 @@ void DanmakuManager::onDisconnected()
     m_connected = false;
     m_heartbeatTimer->stop();
     emit disconnected();
-    LOG_INFO("Danmu WebSocket disconnected");
+    emit logMessage("弹幕: WebSocket 已断开");
+
+    if (m_roomId > 0 && m_reconnectRetry < 3) {
+        emit logMessage(QString("弹幕: %1 秒后尝试重连...").arg(m_reconnectRetry + 1));
+        m_reconnectTimer->start((m_reconnectRetry + 1) * 2000);
+    }
 }
 
 void DanmakuManager::onError(QAbstractSocket::SocketError error)
 {
     Q_UNUSED(error);
-    LOG_ERROR("Danmu WebSocket error: {}", m_ws->errorString().toStdString());
+    QString err = m_ws->errorString();
+    LOG_ERROR("Danmu WebSocket error: {}", err.toStdString());
+    emit logMessage(QString("弹幕错误: %1").arg(err));
 }
 
-void DanmakuManager::sendPacket(int operation, const QByteArray &body)
+void DanmakuManager::tryReconnect()
+{
+    if (m_roomId <= 0) return;
+    m_reconnectRetry++;
+    emit logMessage(QString("弹幕: 重连第 %1 次...").arg(m_reconnectRetry));
+    m_api->getDanmuInfo(m_roomId);
+}
+
+void DanmakuManager::sendPacket(int operation, const QByteArray &body, int headerProtoVer)
 {
     if (!m_ws || m_ws->state() != QAbstractSocket::ConnectedState) return;
 
@@ -118,7 +178,7 @@ void DanmakuManager::sendPacket(int operation, const QByteArray &body)
     qint16 headerLen = qToBigEndian<qint16>(HEADER_LENGTH);
     memcpy(packet.data() + 4, &headerLen, 2);
 
-    qint16 protoVer = qToBigEndian<qint16>(PROTOCOL_VERSION_NORMAL);
+    qint16 protoVer = qToBigEndian<qint16>(headerProtoVer);
     memcpy(packet.data() + 6, &protoVer, 2);
 
     qint32 netOp = qToBigEndian<qint32>(operation);
@@ -175,9 +235,10 @@ void DanmakuManager::parsePackets(const QByteArray &data)
         switch (operation) {
         case OPERATION_AUTH_REPLY:
             m_connected = true;
-            m_heartbeatTimer->start(30000);
+            m_reconnectRetry = 0;
+            m_heartbeatTimer->start(10000);
             emit connected();
-            LOG_INFO("Danmu auth successful");
+            emit logMessage("弹幕: 认证成功，开始接收");
             break;
 
         case OPERATION_HEARTBEAT_REPLY:
@@ -230,7 +291,7 @@ void DanmakuManager::handleDanmuMsg(const QJsonArray &info)
 
 void DanmakuManager::sendHeartbeat()
 {
-    sendPacket(OPERATION_HEARTBEAT);
+    sendPacket(OPERATION_HEARTBEAT, "[object Object]");
 }
 
 QByteArray DanmakuManager::decompressZlib(const QByteArray &data)
@@ -279,6 +340,15 @@ void DanmakuManager::sendDanmaku(const QString &text)
         return;
     }
 
-    // TODO: implement send via BilibiliApi
-    LOG_INFO("Would send danmaku: {}", text.toStdString());
+    if (m_uid == 0) {
+        emit sendError("需要登录才能发送弹幕");
+        return;
+    }
+
+    m_api->sendLiveDanmaku(m_roomId, text);
+}
+
+void DanmakuManager::setUid(qint64 uid)
+{
+    m_uid = uid;
 }

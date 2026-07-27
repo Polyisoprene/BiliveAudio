@@ -1,3 +1,4 @@
+#include <clocale>
 #include <QApplication>
 #include "utils/Logger.h"
 #include "utils/Settings.h"
@@ -6,6 +7,7 @@
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+    setlocale(LC_NUMERIC, "C");
     app.setApplicationName("BiliveAudio");
     app.setOrganizationName("BiliveAudio");
     app.setQuitOnLastWindowClosed(false);

@@ -36,6 +36,7 @@ set(SOURCES
     src/ui/PlayerControl.cpp
     src/ui/TrayManager.cpp
     src/ui/DanmakuPanel.cpp
+    src/ui/DanmakuWindow.cpp
     src/utils/Settings.cpp
 )
 
@@ -51,6 +52,7 @@ set(HEADERS
     src/ui/PlayerControl.h
     src/ui/TrayManager.h
     src/ui/DanmakuPanel.h
+    src/ui/DanmakuWindow.h
     src/utils/Logger.h
     src/utils/Settings.h
     src/models/UserInfo.h

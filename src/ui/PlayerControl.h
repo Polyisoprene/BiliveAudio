@@ -9,6 +9,7 @@ class PlayerControl : public QWidget {
 public:
     explicit PlayerControl(QWidget *parent = nullptr);
     void setPlaying(bool playing);
+    bool isPlaying() const { return m_isPlaying; }
     void setVolume(int percent);
     void setRoomInfo(const QString &username, const QString &title);
 
@@ -19,6 +20,7 @@ signals:
 
 private:
     QPushButton *m_playBtn = nullptr;
+    QPushButton *m_stopBtn = nullptr;
     QSlider *m_volumeSlider = nullptr;
     QLabel *m_roomInfoLabel = nullptr;
     QLabel *m_statusLabel = nullptr;

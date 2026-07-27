@@ -21,6 +21,11 @@ PlayerControl::PlayerControl(QWidget *parent)
     m_playBtn->setFixedSize(36, 36);
     controlBar->addWidget(m_playBtn);
 
+    m_stopBtn = new QPushButton;
+    m_stopBtn->setIcon(style()->standardIcon(QStyle::SP_MediaStop));
+    m_stopBtn->setFixedSize(36, 36);
+    controlBar->addWidget(m_stopBtn);
+
     m_statusLabel = new QLabel("停止");
     controlBar->addWidget(m_statusLabel);
 
@@ -39,6 +44,10 @@ PlayerControl::PlayerControl(QWidget *parent)
 
     connect(m_playBtn, &QPushButton::clicked, this, [this] {
         emit playPauseClicked();
+    });
+
+    connect(m_stopBtn, &QPushButton::clicked, this, [this] {
+        emit stopClicked();
     });
 
     connect(m_volumeSlider, &QSlider::valueChanged, this, &PlayerControl::volumeChanged);

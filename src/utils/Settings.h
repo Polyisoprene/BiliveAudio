@@ -23,5 +23,6 @@ public:
 
 private:
     Settings();
+    static QString configPath();
     QSettings m_settings;
 };

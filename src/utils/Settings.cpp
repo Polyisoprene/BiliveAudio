@@ -1,4 +1,6 @@
 #include "Settings.h"
+#include <QStandardPaths>
+#include <QDir>
 
 static Settings *g_instance = nullptr;
 
@@ -10,8 +12,15 @@ Settings &Settings::instance()
 }
 
 Settings::Settings()
-    : m_settings("BiliveAudio", "BiliveAudio")
+    : m_settings(configPath(), QSettings::IniFormat)
 {
+}
+
+QString Settings::configPath()
+{
+    QString dir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    QDir().mkpath(dir);
+    return dir + "/biliveaudio.conf";
 }
 
 QString Settings::cookie() const
