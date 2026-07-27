@@ -92,16 +92,30 @@ jobs:
           modules: qtwebsockets
           cache: true
 
+      - name: Download mpv dev
+        shell: pwsh
+        run: |
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/mpv-player/mpv/releases/tags/git-release"
+          $asset = $release.assets | Where-Object { $_.name -match 'x86_64-pc-windows-msvc' -and $_.name -notmatch 'pdb' }
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile mpv.zip
+          Expand-Archive -Path mpv.zip -DestinationPath mpv_temp
+          $mpvDir = (Get-ChildItem -Path mpv_temp -Directory)[0].FullName
+          echo "MPV_DIR=$mpvDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - name: Build
         run: |
           cmake -S . -B build `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" `
+            -DMPV_INCLUDE_DIR="${{ env.MPV_DIR }}/include" `
+            -DMPV_LIBRARY="${{ env.MPV_DIR }}/lib/mpv.lib"
           cmake --build build --config Release
 
       - name: Package
         run: |
+          copy "${{ env.MPV_DIR }}/mpv-1.dll" build/Release/
           windeployqt build/Release/BiliveAudio.exe
+          del build/Release/*.pdb
           Compress-Archive -Path build/Release/* -DestinationPath BiliveAudio-windows.zip
 
       - name: Upload release

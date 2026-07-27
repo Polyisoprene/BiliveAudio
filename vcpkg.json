@@ -5,7 +5,6 @@
   "dependencies": [
     "spdlog",
     "libqrencode",
-    "brotli",
-    "mpv"
+    "brotli"
   ]
 }

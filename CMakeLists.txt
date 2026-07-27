@@ -11,7 +11,8 @@ find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebSockets)
 find_package(spdlog REQUIRED)
 
 if(WIN32)
-    find_package(mpv CONFIG REQUIRED)
+    find_path(MPV_INCLUDE_DIR NAMES mpv/client.h REQUIRED)
+    find_library(MPV_LIBRARY NAMES mpv REQUIRED)
     find_package(unofficial-brotli CONFIG REQUIRED)
     find_path(QRENCODE_INCLUDE_DIR NAMES qrencode.h REQUIRED)
     find_library(QRENCODE_LIBRARY_RELEASE qrencode REQUIRED)
@@ -72,11 +73,11 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${RESOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 if(WIN32)
-    target_include_directories(${PROJECT_NAME} PRIVATE ${QRENCODE_INCLUDE_DIR})
+    target_include_directories(${PROJECT_NAME} PRIVATE ${QRENCODE_INCLUDE_DIR} ${MPV_INCLUDE_DIR})
     target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets
         spdlog::spdlog
-        mpv::mpv
+        ${MPV_LIBRARY}
         unofficial::brotli::brotlidec
         optimized ${QRENCODE_LIBRARY_RELEASE}
         debug ${QRENCODE_LIBRARY_DEBUG}
