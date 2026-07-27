@@ -99,11 +99,12 @@ jobs:
         run: |
           $headers = @{ Authorization = "Bearer $env:GH_TOKEN" }
           $release = Invoke-RestMethod -Uri "https://api.github.com/repos/mpv-player/mpv/releases/tags/git-release" -Headers $headers
-          $asset = $release.assets | Where-Object { $_.name -match 'x86_64-pc-windows-msvc' -and $_.name -notmatch 'pdb' }
+          $asset = $release.assets | Where-Object { $_.name -like '*x86_64-pc-windows-msvc.zip' -and $_.name -notlike '*pdb*' } | Select-Object -First 1
           if (-not $asset) { throw "No matching mpv MSVC asset found" }
-          $uri = $asset.browser_download_url
-          Write-Host "Downloading mpv from $uri"
-          curl.exe -L -o mpv.zip "$uri" --connect-timeout 30 --max-time 120
+          $url = $asset.browser_download_url
+          Write-Host "Downloading $url"
+          curl.exe -sL -o mpv.zip "$url" --connect-timeout 30 --max-time 180
+          if (-not (Test-Path mpv.zip)) { throw "Download failed: mpv.zip not found" }
           Expand-Archive -Path mpv.zip -DestinationPath mpv_temp
           $mpvDir = (Get-ChildItem -Path mpv_temp -Directory)[0].FullName
           echo "MPV_DIR=$mpvDir" | Out-File -FilePath $env:GITHUB_ENV -Append
