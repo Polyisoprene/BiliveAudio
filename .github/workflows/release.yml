@@ -94,24 +94,15 @@ jobs:
 
       - name: Download mpv dev
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          $headers = @{ Authorization = "Bearer $env:GH_TOKEN" }
-          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/mpv-player/mpv/releases/tags/git-release" -Headers $headers
-          $asset = $release.assets | Where-Object { $_.name -like '*x86_64-pc-windows-msvc.zip' -and $_.name -notlike '*pdb*' } | Select-Object -First 1
-          if (-not $asset) { throw "No matching mpv MSVC asset found" }
-          $url = $asset.browser_download_url
-          Write-Host "Downloading $url"
-          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-          Invoke-WebRequest -Uri $url -OutFile mpv.zip -UseBasicParsing
-          $zipSize = (Get-Item mpv.zip).Length
-          if ($zipSize -lt 1000) { throw "Downloaded zip too small ($zipSize bytes)" }
-          Expand-Archive -Path mpv.zip -DestinationPath mpv_temp
-          $dirs = Get-ChildItem -Path mpv_temp -Directory
-          $mpvDir = if ($dirs) { $dirs[0].FullName } else { "$(Resolve-Path mpv_temp)" }
-          Write-Host "mpv dir: $mpvDir"
-          Get-ChildItem -Path $mpvDir -Recurse -Depth 2
+          gh release download git-release -R mpv-player/mpv --pattern "*x86_64-pc-windows-msvc.zip" --skip-existing -D mpv_dl 2>&1
+          $zipFile = Get-ChildItem -Path mpv_dl -Filter *.zip | Where-Object { $_.Name -notmatch 'pdb' } | Select-Object -First 1
+          if (-not $zipFile) { throw "No mpv MSVC zip found" }
+          Write-Host "Downloaded $($zipFile.Name) ($($zipFile.Length) bytes)"
+          New-Item -ItemType Directory -Force -Path mpv_root | Out-Null
+          Expand-Archive -Path $zipFile.FullName -DestinationPath mpv_root -Force
+          $mpvDir = if ((Get-ChildItem mpv_root -Directory).Count -gt 0) { (Get-ChildItem mpv_root -Directory)[0].FullName } else { "$(Resolve-Path mpv_root)" }
+          Write-Host "mpv_dir: $mpvDir"
           if (-not (Test-Path "$mpvDir/include/mpv/client.h")) { throw "mpv/client.h not found" }
           echo "MPV_DIR=$mpvDir" | Out-File -FilePath $env:GITHUB_ENV -Append
 
