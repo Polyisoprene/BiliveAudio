@@ -36,12 +36,25 @@ void LiveMonitor::refreshNow()
 
 void LiveMonitor::fetchFollowedList()
 {
-    m_api->fetchFollowedList(m_uid, 1, 50);
+    if (m_fetching) return;
+    m_fetching = true;
+    m_followed.clear();
+    m_followedPage = 1;
+    m_api->fetchFollowedList(m_uid, m_followedPage, 50);
 }
 
 void LiveMonitor::onFollowedList(const QList<FollowedUser> &users, bool hasMore)
 {
-    m_followed = QVector<FollowedUser>(users.begin(), users.end());
+    if (!m_fetching) return;
+    m_followed.append(QVector<FollowedUser>(users.begin(), users.end()));
+    LOG_INFO("LiveMonitor: page {} got {} users, total {}, hasMore={}",
+             m_followedPage, users.size(), m_followed.size(), hasMore);
+
+    if (hasMore) {
+        m_followedPage++;
+        m_api->fetchFollowedList(m_uid, m_followedPage, 50);
+        return;
+    }
 
     QList<qint64> uids;
     for (auto &u : m_followed)
@@ -49,15 +62,15 @@ void LiveMonitor::onFollowedList(const QList<FollowedUser> &users, bool hasMore)
 
     if (!uids.isEmpty())
         m_api->checkLiveStatus(uids);
-
-    if (hasMore) {
-        // In a real implementation, fetch more pages
-    }
 }
 
 void LiveMonitor::onLiveStatus(const QMap<qint64, LiveRoom> &rooms)
 {
-    m_liveRooms.clear();
+    m_fetching = false;
+    int liveCount = 0;
+    for (auto it = rooms.begin(); it != rooms.end(); ++it)
+        if (it.value().isLive) liveCount++;
+    LOG_INFO("LiveMonitor: status for {} users, {} live", rooms.size(), liveCount);
     QSet<qint64> currentLiveUids;
 
     for (auto it = rooms.begin(); it != rooms.end(); ++it) {

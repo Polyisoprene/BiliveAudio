@@ -256,7 +256,7 @@ void BilibiliApi::fetchFollowedList(qint64 uid, int page, int pageSize)
     QString url = QString("%1/x/relation/followings?vmid=%2&pn=%3&ps=%4")
                       .arg(BASE_API).arg(uid).arg(page).arg(pageSize);
     auto *reply = get(url);
-    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, pageSize] {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
             emit requestError("fetchFollowedList", reply->errorString());
@@ -273,7 +273,7 @@ void BilibiliApi::fetchFollowedList(qint64 uid, int page, int pageSize)
             u.avatarUrl = o["face"].toString();
             users << u;
         }
-        bool hasMore = data["has_more"].toBool();
+        bool hasMore = (users.size() == pageSize);  // full page means might have more
         emit followedListReady(users, hasMore);
     });
 }
@@ -289,7 +289,8 @@ void BilibiliApi::checkLiveStatus(const QList<qint64> &uids)
     body["uids"] = arr;
     auto *reply = postJson(
         QString("%1/room/v1/Room/get_status_info_by_uids").arg(BASE_LIVE), body);
-    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    auto uidCount = uids.size();
+    connect(reply, &QNetworkReply::finished, this, [this, reply, uidCount] {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
             emit requestError("checkLiveStatus", reply->errorString());
@@ -298,18 +299,26 @@ void BilibiliApi::checkLiveStatus(const QList<qint64> &uids)
         auto doc = QJsonDocument::fromJson(reply->readAll());
         auto data = doc.object()["data"].toObject();
         QMap<qint64, LiveRoom> rooms;
+        int totalReturned = 0, totalLive = 0;
         for (auto it = data.begin(); it != data.end(); ++it) {
             auto o = it.value().toObject();
+            totalReturned++;
             LiveRoom room;
             room.roomId = o["room_id"].toVariant().toLongLong();
             room.uid = o["uid"].toVariant().toLongLong();
             room.username = o["uname"].toString();
             room.title = o["title"].toString();
             room.coverUrl = o["cover"].toString();
-            room.viewerCount = o["live_status"].toInt() == 1 ? o["online"].toVariant().toLongLong() : 0;
-            room.isLive = o["live_status"].toInt() == 1;
+            int status = o["live_status"].toInt();
+            room.viewerCount = status == 1 ? o["online"].toVariant().toLongLong() : 0;
+            room.isLive = status == 1;
+            if (status == 1) {
+                totalLive++;
+                LOG_INFO("checkLiveStatus LIVE: uid={} name={} title={}", room.uid, room.username.toStdString(), room.title.toStdString());
+            }
             rooms[room.uid] = room;
         }
+        LOG_INFO("checkLiveStatus: sent {} uids, got back {}, {} live", uidCount, totalReturned, totalLive);
         emit liveStatusReady(rooms);
     });
 }

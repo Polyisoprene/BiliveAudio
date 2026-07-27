@@ -6,6 +6,7 @@
 #include <QPushButton>
 #include <QFileDialog>
 #include <QGroupBox>
+#include <QCheckBox>
 #include <QStandardPaths>
 
 SettingsDialog::SettingsDialog(QWidget *parent)
@@ -49,6 +50,13 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     cookieDirRow->addWidget(cookieBrowseBtn);
     cookieForm->addRow("配置文件:", cookieDirRow);
     layout->addWidget(cookieGroup);
+
+    // Danmaku settings
+    auto *dmGroup = new QGroupBox("弹幕");
+    auto *dmLayout = new QVBoxLayout(dmGroup);
+    m_imageModeCheck = new QCheckBox("图像模式（头像 + 聊天气泡）");
+    dmLayout->addWidget(m_imageModeCheck);
+    layout->addWidget(dmGroup);
 
     // Config path info
     m_configPathLabel = new QLabel;
@@ -100,6 +108,7 @@ void SettingsDialog::loadSettings()
     m_cookiePathEdit->setText(
         QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)
         + "/biliveaudio.conf");
+    m_imageModeCheck->setChecked(s.danmakuImageMode());
     m_configPathLabel->setText("重启应用后日志路径修改生效");
 }
 
@@ -108,4 +117,5 @@ void SettingsDialog::saveSettings()
     auto &s = Settings::instance();
     s.setLogDir(m_logDirEdit->text());
     s.setLogRetentionDays(m_retentionSpin->value());
+    s.setDanmakuImageMode(m_imageModeCheck->isChecked());
 }

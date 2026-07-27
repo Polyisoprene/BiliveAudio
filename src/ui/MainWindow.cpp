@@ -180,6 +180,8 @@ void MainWindow::setupConnections()
             return;
         }
         appendLog(QString("[信息] 房间 %1 流地址就绪，开始播放").arg(roomId));
+        m_danmakuPanel->clear();
+        m_danmakuWindow->clear();
         m_player->play(url);
         m_danmaku->connectRoom(roomId);
     });
@@ -261,6 +263,8 @@ void MainWindow::setupConnections()
         m_playerControl->setRoomInfo(username, title);
         m_player->stop();
         m_danmaku->disconnectRoom();
+        m_danmakuPanel->clear();
+        m_danmakuWindow->clear();
         m_api->getRoomInfo(roomId);
     });
     connect(m_monitor, &LiveMonitor::newLiveStarted, this, [this](const LiveRoom &room) {

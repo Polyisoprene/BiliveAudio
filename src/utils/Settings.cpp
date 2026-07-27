@@ -101,3 +101,13 @@ void Settings::setLogRetentionDays(int days)
 {
     m_settings.setValue("log/retention", qMax(1, days));
 }
+
+bool Settings::danmakuImageMode() const
+{
+    return m_settings.value("danmaku/imageMode", false).toBool();
+}
+
+void Settings::setDanmakuImageMode(bool enabled)
+{
+    m_settings.setValue("danmaku/imageMode", enabled);
+}

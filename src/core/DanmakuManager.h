@@ -53,4 +53,6 @@ private:
     QByteArray decompressBrotli(const QByteArray &data);
     void parsePackets(const QByteArray &data);
     void handleDanmuMsg(const QJsonArray &info);
+    void handleSuperChat(const QJsonObject &data);
+    void handleGift(const QJsonObject &data);
 };

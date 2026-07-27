@@ -27,6 +27,9 @@ public:
     int logRetentionDays() const;
     void setLogRetentionDays(int days);
 
+    bool danmakuImageMode() const;
+    void setDanmakuImageMode(bool enabled);
+
 private:
     Settings();
     static QString configPath();

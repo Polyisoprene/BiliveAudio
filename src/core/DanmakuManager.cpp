@@ -256,8 +256,11 @@ void DanmakuManager::parsePackets(const QByteArray &data)
                 auto obj = doc.object();
                 QString cmd = obj["cmd"].toString();
                 if (cmd == "DANMU_MSG") {
-                    auto info = obj["info"].toArray();
-                    handleDanmuMsg(info);
+                    handleDanmuMsg(obj["info"].toArray());
+                } else if (cmd == "SUPER_CHAT_MESSAGE") {
+                    handleSuperChat(obj["data"].toObject());
+                } else if (cmd == "SEND_GIFT") {
+                    handleGift(obj["data"].toObject());
                 }
             }
             break;
@@ -273,19 +276,57 @@ void DanmakuManager::parsePackets(const QByteArray &data)
 
 void DanmakuManager::handleDanmuMsg(const QJsonArray &info)
 {
-    // info[1] = text
-    // info[2][0] = uid, info[2][1] = username
-    // info[0][3] = color
     if (info.size() < 3) return;
 
+    auto userInfo = info[2].toArray();
     Danmaku dm;
     dm.text = info[1].toString();
-    dm.username = info[2].toArray()[1].toString();
-    dm.uid = QString::number(info[2].toArray()[0].toVariant().toLongLong());
-    auto colorVal = info[0].toArray()[3].toInt();
-    dm.color = QColor(colorVal);
+    dm.username = userInfo[1].toString();
+    dm.uid = QString::number(userInfo[0].toVariant().toLongLong());
+    dm.color = QColor(info[0].toArray()[3].toInt());
     dm.timestamp = QDateTime::currentSecsSinceEpoch();
     dm.type = "danmaku";
+
+    // Avatar URL from info[2][7]
+    if (userInfo.size() > 7)
+        dm.faceUrl = userInfo[7].toString();
+
+    // Fans medal from info[3]
+    if (info.size() > 3 && info[3].isObject()) {
+        auto medal = info[3].toObject();
+        dm.medalName = medal["medal_name"].toString();
+        dm.medalLevel = medal["medal_level"].toInt();
+        dm.medalColor = QColor::fromRgb(medal["medal_color"].toInt(12632256));
+    }
+
+    emit danmakuReceived(dm);
+}
+
+void DanmakuManager::handleSuperChat(const QJsonObject &data)
+{
+    Danmaku dm;
+    dm.text = data["message"].toString();
+    dm.username = data["user_info"].toObject()["uname"].toString();
+    dm.uid = QString::number(data["uid"].toVariant().toLongLong());
+    dm.price = static_cast<qint64>(data["price"].toDouble() * 1000);
+    dm.color = QColor(data["background_price_color"].toString());
+    dm.faceUrl = data["user_info"].toObject()["face"].toString();
+    dm.timestamp = data["start_time"].toVariant().toLongLong();
+    dm.type = "sc";
+    emit danmakuReceived(dm);
+}
+
+void DanmakuManager::handleGift(const QJsonObject &data)
+{
+    Danmaku dm;
+    dm.giftName = data["giftName"].toString();
+    dm.giftCount = data["num"].toInt();
+    dm.username = data["uname"].toString();
+    dm.uid = QString::number(data["uid"].toVariant().toLongLong());
+    dm.faceUrl = data["face"].toString();
+    dm.timestamp = QDateTime::currentSecsSinceEpoch();
+    dm.type = "gift";
+    dm.text = QString("送出 %1 x%2").arg(dm.giftName).arg(dm.giftCount);
     emit danmakuReceived(dm);
 }
 

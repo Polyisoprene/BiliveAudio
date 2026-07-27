@@ -31,6 +31,8 @@ private:
     QVector<FollowedUser> m_followed;
     QVector<LiveRoom> m_liveRooms;
     QSet<qint64> m_prevLiveUids;
+    int m_followedPage = 1;
+    bool m_fetching = false;
 
     void fetchFollowedList();
     void onFollowedList(const QList<FollowedUser> &users, bool hasMore);
