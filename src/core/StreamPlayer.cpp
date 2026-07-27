@@ -1,6 +1,5 @@
 #include "StreamPlayer.h"
 #include "utils/Logger.h"
-#include <QApplication>
 #include <QTimer>
 #ifdef __linux__
 #include <malloc.h>
@@ -16,7 +15,7 @@ StreamPlayer::~StreamPlayer()
 {
     if (m_mpv) {
         mpv_command_string(m_mpv, "stop");
-        mpv_terminate_destroy(m_mpv);
+        mpv_destroy(m_mpv);
     }
 }
 
@@ -31,7 +30,6 @@ void StreamPlayer::initMpv()
     // Audio-only configuration
     mpv_set_option_string(m_mpv, "vo", "null");
     mpv_set_option_string(m_mpv, "video", "no");
-    mpv_set_option_string(m_mpv, "audio-display", "no");
 
     // Live streaming optimization
     mpv_set_option_string(m_mpv, "cache", "yes");
@@ -49,7 +47,7 @@ void StreamPlayer::initMpv()
 
     if (mpv_initialize(m_mpv) < 0) {
         LOG_CRITICAL("Failed to initialize mpv");
-        mpv_terminate_destroy(m_mpv);
+        mpv_destroy(m_mpv);
         m_mpv = nullptr;
         return;
     }

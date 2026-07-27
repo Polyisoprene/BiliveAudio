@@ -1,7 +1,6 @@
 #pragma once
 #include <QObject>
 #include <QTimer>
-#include <QImage>
 #include "BilibiliApi.h"
 #include "models/UserInfo.h"
 

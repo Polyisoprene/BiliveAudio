@@ -2,7 +2,6 @@
 #include <QIcon>
 #include <QPainter>
 #include <QApplication>
-#include <QStyle>
 
 TrayManager::TrayManager(QObject *parent)
     : QObject(parent)

@@ -3,8 +3,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QUrlQuery>
-#include <QNetworkCookie>
 
 static const char *BASE_PASSPORT = "https://passport.bilibili.com";
 static const char *BASE_API = "https://api.bilibili.com";
@@ -97,9 +95,9 @@ void BilibiliApi::pollQRCode(const QString &qrcodeKey)
         auto doc = QJsonDocument::fromJson(reply->readAll());
         auto data = doc.object()["data"].toObject();
         int dataCode = data["code"].toInt();
-        QString url = data["url"].toString();
+        QString confirmUrl = data["url"].toString();
 
-        if (dataCode == 0 && !url.isEmpty()) {
+        if (dataCode == 0 && !confirmUrl.isEmpty()) {
             // Login confirmed - extract cookies from raw headers
             QStringList cookies;
             auto rawHeaders = reply->rawHeaderPairs();
@@ -237,7 +235,7 @@ void BilibiliApi::getRoomInfo(qint64 roomId)
 void BilibiliApi::getStreamUrl(qint64 roomId, qint64 cid)
 {
     QString url = QString("%1/room/v1/Room/playUrl?cid=%2&platform=web&qn=0")
-                      .arg(BASE_LIVE).arg(roomId);
+                      .arg(BASE_LIVE).arg(cid);
     auto *reply = get(url);
     connect(reply, &QNetworkReply::finished, this, [this, reply, roomId] {
         reply->deleteLater();

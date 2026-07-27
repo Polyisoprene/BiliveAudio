@@ -42,9 +42,9 @@ void AuthManager::onQRCodeFetched(const QString &url, const QString &key)
     m_qrcodeKey = key;
     emit qrCodeReady(url, key);
 
-    connect(m_pollTimer, &QTimer::timeout, this, [this] {
+    QObject::connect(m_pollTimer, &QTimer::timeout, this, [this] {
         m_api->pollQRCode(m_qrcodeKey);
-    });
+    }, Qt::SingleShotConnection);
     m_pollTimer->start();
     LOG_INFO("QR code displayed, polling started");
 }

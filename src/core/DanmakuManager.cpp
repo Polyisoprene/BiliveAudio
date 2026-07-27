@@ -27,8 +27,7 @@ DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
     connect(m_ws, &QWebSocket::connected, this, &DanmakuManager::onConnected);
     connect(m_ws, &QWebSocket::disconnected, this, &DanmakuManager::onDisconnected);
     connect(m_ws, &QWebSocket::binaryMessageReceived, this, &DanmakuManager::onBinaryMessage);
-    connect(m_ws, QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error),
-            this, &DanmakuManager::onError);
+    connect(m_ws, &QWebSocket::errorOccurred, this, &DanmakuManager::onError);
     connect(m_heartbeatTimer, &QTimer::timeout, this, &DanmakuManager::sendHeartbeat);
 
     connect(m_api, &BilibiliApi::danmuInfoReady, this, &DanmakuManager::onDanmuInfoReady);
@@ -178,7 +177,9 @@ void DanmakuManager::parsePackets(const QByteArray &data)
 
         case OPERATION_HEARTBEAT_REPLY:
             if (body.size() >= 4) {
-                int viewers = qFromBigEndian<qint32>(body.constData());
+                qint32 viewers;
+                memcpy(&viewers, body.constData(), sizeof(viewers));
+                viewers = qFromBigEndian<qint32>(viewers);
                 emit viewerCountChanged(viewers);
             }
             break;
@@ -247,6 +248,15 @@ QByteArray DanmakuManager::decompressBrotli(const QByteArray &data)
 
     BrotliDecoderResult res = BrotliDecoderDecompressStream(
         state, &availableIn, &nextIn, &availableOut, &nextOut, nullptr);
+
+    while (res == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
+        size_t offset = nextOut - reinterpret_cast<uint8_t *>(result.data());
+        result.resize(result.size() * 2);
+        nextOut = reinterpret_cast<uint8_t *>(result.data()) + offset;
+        availableOut = result.size() - offset;
+        res = BrotliDecoderDecompressStream(
+            state, &availableIn, &nextIn, &availableOut, &nextOut, nullptr);
+    }
 
     BrotliDecoderDestroyInstance(state);
 

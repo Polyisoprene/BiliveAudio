@@ -4,6 +4,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QImage>
+#include <QPixmap>
 #include <QPainter>
 #include <qrencode.h>
 

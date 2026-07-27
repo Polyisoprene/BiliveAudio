@@ -14,9 +14,7 @@
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QMessageBox>
 #include <QApplication>
-#include <QStyle>
 #include <QFile>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -217,7 +215,7 @@ void MainWindow::restoreSession()
             m_statusLabel->setText("会话已过期，请重新登录");
             Settings::instance().setCookie({});
         }
-    });
+    }, Qt::SingleShotConnection);
 }
 
 void MainWindow::onLoginSuccess(const QString &cookie, const QString &username)

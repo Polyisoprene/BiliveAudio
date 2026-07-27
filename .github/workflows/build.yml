@@ -46,7 +46,6 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json
-          vcpkgGitCommitId: "latest"
 
       - name: Install Qt6
         uses: jurplel/install-qt-action@v4

@@ -1,4 +1,5 @@
 #include "PlayerControl.h"
+#include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QApplication>
 #include <QStyle>
