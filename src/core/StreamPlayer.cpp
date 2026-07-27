@@ -1,6 +1,9 @@
 #include "StreamPlayer.h"
 #include "utils/Logger.h"
 #include <QTimer>
+#ifndef BILIVE_AUDIO_WINDOWS
+#include <mpv/client.h>
+#endif
 #ifdef __linux__
 #include <malloc.h>
 #endif
@@ -8,16 +11,24 @@
 StreamPlayer::StreamPlayer(QObject *parent)
     : QObject(parent)
 {
+#ifndef BILIVE_AUDIO_WINDOWS
     initMpv();
+#else
+    LOG_INFO("mpv not available — audio playback disabled on Windows");
+#endif
 }
 
 StreamPlayer::~StreamPlayer()
 {
+#ifndef BILIVE_AUDIO_WINDOWS
     if (m_mpv) {
         mpv_command_string(m_mpv, "stop");
         mpv_destroy(m_mpv);
     }
+#endif
 }
+
+#ifndef BILIVE_AUDIO_WINDOWS
 
 void StreamPlayer::initMpv()
 {
@@ -27,11 +38,9 @@ void StreamPlayer::initMpv()
         return;
     }
 
-    // Audio-only configuration
     mpv_set_option_string(m_mpv, "vo", "null");
     mpv_set_option_string(m_mpv, "video", "no");
 
-    // Live streaming optimization
     mpv_set_option_string(m_mpv, "cache", "yes");
     mpv_set_option_string(m_mpv, "cache-secs", "5");
     mpv_set_option_string(m_mpv, "demuxer-max-bytes", "5MiB");
@@ -39,10 +48,7 @@ void StreamPlayer::initMpv()
     mpv_set_option_string(m_mpv, "stream-lavf-o",
                           "reconnect=1:reconnect_streamed=1:reconnect_delay_max=5");
 
-    // Low latency
     mpv_set_option_string(m_mpv, "profile", "low-latency");
-
-    // Error on missing audio (not video)
     mpv_set_option_string(m_mpv, "no-audio-display", "yes");
 
     if (mpv_initialize(m_mpv) < 0) {
@@ -133,3 +139,17 @@ void StreamPlayer::setVolume(int percent)
 }
 
 int StreamPlayer::volume() const { return m_volume; }
+
+#else // BILIVE_AUDIO_WINDOWS — stub implementations
+
+void StreamPlayer::play(const QString &streamUrl) {
+    Q_UNUSED(streamUrl);
+    emit error("Audio playback not available on Windows");
+}
+void StreamPlayer::stop() { m_playing = false; }
+void StreamPlayer::pause() {}
+void StreamPlayer::resume() {}
+void StreamPlayer::setVolume(int percent) { m_volume = qBound(0, percent, 100); Q_UNUSED(percent); }
+int StreamPlayer::volume() const { return m_volume; }
+
+#endif // BILIVE_AUDIO_WINDOWS
