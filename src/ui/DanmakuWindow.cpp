@@ -118,6 +118,7 @@ void DanmakuWindow::addDanmaku(const Danmaku &dm)
 
 void DanmakuWindow::insertDanmaku(const Danmaku &dm)
 {
+    m_programmaticScroll = true;
     auto *scroll = m_list->verticalScrollBar();
 
     auto *item = new QListWidgetItem(m_list);

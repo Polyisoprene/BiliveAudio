@@ -249,77 +249,36 @@ void BilibiliApi::getUserInfo()
     });
 }
 
-// === Followed List ===
+// === Live Followed (dynamic portal) ===
 
-void BilibiliApi::fetchFollowedList(qint64 uid, int page, int pageSize)
+void BilibiliApi::fetchLiveFollowed()
 {
-    QString url = QString("%1/x/relation/followings?vmid=%2&pn=%3&ps=%4")
-                      .arg(BASE_API).arg(uid).arg(page).arg(pageSize);
+    QString url = signUrl(QString("%1/x/polymer/web-dynamic/v1/portal?up_list_more=1&web_location=0.0")
+                             .arg(BASE_API));
     auto *reply = get(url);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, pageSize] {
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
-            emit requestError("fetchFollowedList", reply->errorString());
+            emit requestError("fetchLiveFollowed", reply->errorString());
             return;
         }
         auto doc = QJsonDocument::fromJson(reply->readAll());
-        auto data = doc.object()["data"].toObject();
-        QList<FollowedUser> users;
-        for (const auto &v : data["list"].toArray()) {
+        auto items = doc.object()["data"].toObject()["live_users"].toObject()["items"].toArray();
+        QVector<LiveRoom> rooms;
+        for (const auto &v : items) {
             auto o = v.toObject();
-            FollowedUser u;
-            u.uid = o["mid"].toVariant().toLongLong();
-            u.username = o["uname"].toString();
-            u.avatarUrl = o["face"].toString();
-            users << u;
-        }
-        bool hasMore = (users.size() == pageSize);  // full page means might have more
-        emit followedListReady(users, hasMore);
-    });
-}
-
-// === Live Status ===
-
-void BilibiliApi::checkLiveStatus(const QList<qint64> &uids)
-{
-    QJsonArray arr;
-    for (auto uid : uids)
-        arr.append(uid);
-    QJsonObject body;
-    body["uids"] = arr;
-    auto *reply = postJson(
-        QString("%1/room/v1/Room/get_status_info_by_uids").arg(BASE_LIVE), body);
-    auto uidCount = uids.size();
-    connect(reply, &QNetworkReply::finished, this, [this, reply, uidCount] {
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            emit requestError("checkLiveStatus", reply->errorString());
-            return;
-        }
-        auto doc = QJsonDocument::fromJson(reply->readAll());
-        auto data = doc.object()["data"].toObject();
-        QMap<qint64, LiveRoom> rooms;
-        int totalReturned = 0, totalLive = 0;
-        for (auto it = data.begin(); it != data.end(); ++it) {
-            auto o = it.value().toObject();
-            totalReturned++;
             LiveRoom room;
-            room.roomId = o["room_id"].toVariant().toLongLong();
-            room.uid = o["uid"].toVariant().toLongLong();
+            room.roomId = o["room_id"].toString().toLongLong();
+            room.uid = o["mid"].toVariant().toLongLong();
             room.username = o["uname"].toString();
             room.title = o["title"].toString();
-            room.coverUrl = o["cover"].toString();
-            int status = o["live_status"].toInt();
-            room.viewerCount = status == 1 ? o["online"].toVariant().toLongLong() : 0;
-            room.isLive = status == 1;
-            if (status == 1) {
-                totalLive++;
-                LOG_INFO("checkLiveStatus LIVE: uid={} name={} title={}", room.uid, room.username.toStdString(), room.title.toStdString());
-            }
-            rooms[room.uid] = room;
+            room.coverUrl = o["face"].toString();
+            room.isLive = true;
+            room.viewerCount = 0;
+            rooms << room;
         }
-        LOG_INFO("checkLiveStatus: sent {} uids, got back {}, {} live", uidCount, totalReturned, totalLive);
-        emit liveStatusReady(rooms);
+        LOG_INFO("fetchLiveFollowed: {} live users", rooms.size());
+        emit liveFollowedReady(rooms);
     });
 }
 

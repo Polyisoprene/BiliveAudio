@@ -74,6 +74,7 @@ void DanmakuPanel::addDanmaku(const Danmaku &dm)
 
 void DanmakuPanel::insertDanmaku(const Danmaku &dm)
 {
+    m_programmaticScroll = true;
     auto *scroll = m_list->verticalScrollBar();
 
     auto *item = new QListWidgetItem(m_list);
@@ -90,7 +91,6 @@ void DanmakuPanel::insertDanmaku(const Danmaku &dm)
         return;
     }
     m_scrollAnim = new QPropertyAnimation(scroll, "value", this);
-    m_programmaticScroll = true;
     m_scrollAnim->setDuration(200);
     m_scrollAnim->setEasingCurve(QEasingCurve::OutCubic);
     m_scrollAnim->setStartValue(scroll->value());

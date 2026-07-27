@@ -6,8 +6,7 @@ LiveMonitor::LiveMonitor(BilibiliApi *api, QObject *parent)
 {
     m_pollTimer = new QTimer(this);
 
-    connect(m_api, &BilibiliApi::followedListReady, this, &LiveMonitor::onFollowedList);
-    connect(m_api, &BilibiliApi::liveStatusReady, this, &LiveMonitor::onLiveStatus);
+    connect(m_api, &BilibiliApi::liveFollowedReady, this, &LiveMonitor::onLiveFollowed);
     connect(m_pollTimer, &QTimer::timeout, this, &LiveMonitor::refreshNow);
 }
 
@@ -30,63 +29,28 @@ void LiveMonitor::setUid(qint64 uid)
 
 void LiveMonitor::refreshNow()
 {
-    if (m_uid > 0)
-        fetchFollowedList();
-}
-
-void LiveMonitor::fetchFollowedList()
-{
     if (m_fetching) return;
     m_fetching = true;
-    m_followed.clear();
-    m_followedPage = 1;
-    m_api->fetchFollowedList(m_uid, m_followedPage, 50);
+    m_api->fetchLiveFollowed();
 }
 
-void LiveMonitor::onFollowedList(const QList<FollowedUser> &users, bool hasMore)
-{
-    if (!m_fetching) return;
-    m_followed.append(QVector<FollowedUser>(users.begin(), users.end()));
-    LOG_INFO("LiveMonitor: page {} got {} users, total {}, hasMore={}",
-             m_followedPage, users.size(), m_followed.size(), hasMore);
-
-    if (hasMore) {
-        m_followedPage++;
-        m_api->fetchFollowedList(m_uid, m_followedPage, 50);
-        return;
-    }
-
-    QList<qint64> uids;
-    for (auto &u : m_followed)
-        uids << u.uid;
-
-    if (!uids.isEmpty())
-        m_api->checkLiveStatus(uids);
-}
-
-void LiveMonitor::onLiveStatus(const QMap<qint64, LiveRoom> &rooms)
+void LiveMonitor::onLiveFollowed(const QVector<LiveRoom> &rooms)
 {
     m_fetching = false;
-    m_liveRooms.clear();
-    int liveCount = 0;
-    for (auto it = rooms.begin(); it != rooms.end(); ++it)
-        if (it.value().isLive) liveCount++;
-    LOG_INFO("LiveMonitor: status for {} users, {} live", rooms.size(), liveCount);
-    QSet<qint64> currentLiveUids;
+    m_liveRooms = rooms;
 
-    for (auto it = rooms.begin(); it != rooms.end(); ++it) {
-        if (it.value().isLive) {
-            m_liveRooms << it.value();
-            currentLiveUids.insert(it.key());
-        }
-    }
+    QSet<qint64> currentLiveUids;
+    for (auto &r : rooms)
+        currentLiveUids.insert(r.uid);
 
     // Detect new live sessions
     for (auto uid : currentLiveUids) {
         if (!m_prevLiveUids.contains(uid)) {
-            auto room = rooms[uid];
-            emit newLiveStarted(room);
-            LOG_INFO("New live detected: {} - {}", room.username.toStdString(), room.title.toStdString());
+            auto it = std::find_if(rooms.begin(), rooms.end(), [uid](auto &r) { return r.uid == uid; });
+            if (it != rooms.end()) {
+                emit newLiveStarted(*it);
+                LOG_INFO("New live detected: {} - {}", it->username.toStdString(), it->title.toStdString());
+            }
         }
     }
 
