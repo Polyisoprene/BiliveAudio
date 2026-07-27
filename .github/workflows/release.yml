@@ -95,15 +95,14 @@ jobs:
       - name: Download mpv dev
         shell: pwsh
         run: |
-          gh release download git-release -R mpv-player/mpv --pattern "*x86_64-pc-windows-msvc.zip" --skip-existing -D mpv_dl 2>&1
-          $zipFile = Get-ChildItem -Path mpv_dl -Filter *.zip | Where-Object { $_.Name -notmatch 'pdb' } | Select-Object -First 1
-          if (-not $zipFile) { throw "No mpv MSVC zip found" }
-          Write-Host "Downloaded $($zipFile.Name) ($($zipFile.Length) bytes)"
+          $url = "https://www.nuget.org/api/v2/package/Endpne.LibMPV.Windows/0.41.0"
+          Write-Host "Downloading mpv from NuGet ..."
+          Invoke-WebRequest -Uri $url -OutFile mpv.nupkg -UseBasicParsing
           New-Item -ItemType Directory -Force -Path mpv_root | Out-Null
-          Expand-Archive -Path $zipFile.FullName -DestinationPath mpv_root -Force
-          $mpvDir = if ((Get-ChildItem mpv_root -Directory).Count -gt 0) { (Get-ChildItem mpv_root -Directory)[0].FullName } else { "$(Resolve-Path mpv_root)" }
-          Write-Host "mpv_dir: $mpvDir"
+          Expand-Archive -Path mpv.nupkg -DestinationPath mpv_root -Force
+          $mpvDir = "$(Resolve-Path mpv_root)\build\x64"
           if (-not (Test-Path "$mpvDir/include/mpv/client.h")) { throw "mpv/client.h not found" }
+          Write-Host "mpv_dir: $mpvDir"
           echo "MPV_DIR=$mpvDir" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build
@@ -112,12 +111,12 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" `
             -DMPV_INCLUDE_DIR="${{ env.MPV_DIR }}/include" `
-            -DMPV_LIBRARY="${{ env.MPV_DIR }}/lib/mpv.lib"
+            -DMPV_LIBRARY="${{ env.MPV_DIR }}/libmpv.lib"
           cmake --build build --config Release
 
       - name: Package
         run: |
-          copy "${{ env.MPV_DIR }}/mpv-1.dll" build/Release/
+          copy "${{ env.MPV_DIR }}/libmpv-2.dll" build/Release/
           windeployqt build/Release/BiliveAudio.exe
           del build/Release/*.pdb
           Compress-Archive -Path build/Release/* -DestinationPath BiliveAudio-windows.zip

@@ -12,7 +12,7 @@ find_package(spdlog REQUIRED)
 
 if(WIN32)
     find_path(MPV_INCLUDE_DIR NAMES mpv/client.h REQUIRED)
-    find_library(MPV_LIBRARY NAMES mpv REQUIRED)
+    find_library(MPV_LIBRARY NAMES libmpv-2 libmpv REQUIRED)
     find_package(unofficial-brotli CONFIG REQUIRED)
     find_path(QRENCODE_INCLUDE_DIR NAMES qrencode.h REQUIRED)
     find_library(QRENCODE_LIBRARY_RELEASE qrencode REQUIRED)
