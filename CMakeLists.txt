@@ -11,8 +11,10 @@ find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebSockets)
 find_package(spdlog REQUIRED)
 
 if(WIN32)
-    find_package(libqrencode REQUIRED)
-    find_package(Brotli REQUIRED COMPONENTS dec)
+    find_package(unofficial-brotli CONFIG REQUIRED)
+    find_path(QRENCODE_INCLUDE_DIR NAMES qrencode.h REQUIRED)
+    find_library(QRENCODE_LIBRARY_RELEASE qrencode REQUIRED)
+    find_library(QRENCODE_LIBRARY_DEBUG qrencoded)
     add_compile_definitions(BILIVE_AUDIO_WINDOWS=1)
 else()
     find_package(PkgConfig REQUIRED)
@@ -64,11 +66,13 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${RESOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 if(WIN32)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${QRENCODE_INCLUDE_DIR})
     target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets
         spdlog::spdlog
-        libqrencode::libqrencode
-        Brotli::BrotliDec
+        unofficial::brotli::brotlidec
+        optimized ${QRENCODE_LIBRARY_RELEASE}
+        debug ${QRENCODE_LIBRARY_DEBUG}
     )
     set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
 else()
