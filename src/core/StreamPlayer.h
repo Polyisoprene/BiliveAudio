@@ -2,9 +2,10 @@
 #include <QObject>
 #include <QThread>
 #include <QAudioSink>
-#include <QTimer>
+#include <QIODevice>
 #include <cstdint>
 #include <atomic>
+#include <algorithm>
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -33,13 +34,29 @@ signals:
     void logMessage(const QString &msg);
 
 private:
+    class AudioDevice : public QIODevice {
+    public:
+        AudioDevice(int16_t *buf, int mask,
+                    std::atomic<int> &wp, std::atomic<int> &rp,
+                    float *vol)
+            : m_buf(buf), m_mask(mask), m_wp(wp), m_rp(rp), m_vol(vol) {}
+        bool isSequential() const override { return true; }
+    protected:
+        qint64 readData(char *data, qint64 maxLen) override;
+        qint64 writeData(const char *, qint64) override { return -1; }
+    private:
+        int16_t *m_buf;
+        int m_mask;
+        std::atomic<int> &m_wp;
+        std::atomic<int> &m_rp;
+        float *m_vol;
+    };
+
     void decodeLoop();
-    void feedAudio();
 
     QThread *m_thread = nullptr;
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_paused{false};
-    std::atomic<bool> m_audioReady{false};
 
     AVFormatContext *m_fmtCtx = nullptr;
     AVCodecContext *m_codecCtx = nullptr;
@@ -48,16 +65,15 @@ private:
     QString m_streamUrl;
 
     QAudioSink *m_audioSink = nullptr;
-    QIODevice *m_audioDevice = nullptr;
-    QTimer *m_feedTimer = nullptr;
+    AudioDevice *m_audioDevice = nullptr;
 
-    static constexpr int kBufBits = 19;  // ~6 seconds at 44100 stereo s16
+    static constexpr int kBufBits = 19;
     static constexpr int kBufMask = (1 << kBufBits) - 1;
     static constexpr int kBufSize = 1 << kBufBits;
     int16_t m_buf[kBufSize];
     std::atomic<int> m_wp{0};
     std::atomic<int> m_rp{0};
 
-    int m_volume = 80;
+    float m_volumeF = 0.8f;
     bool m_playing = false;
 };

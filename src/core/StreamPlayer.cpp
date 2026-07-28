@@ -164,7 +164,7 @@ void StreamPlayer::decodeLoop()
             return;
         }
         m_audioDevice = new AudioDevice(m_buf, kBufMask, m_wp, m_rp, &m_volumeF);
-        m_audioDevice->open(QIODevice::ReadOnly);
+        m_audioDevice->open(QIODevice::ReadWrite);
         m_audioSink = new QAudioSink(dev, fmt);
         m_audioSink->start(m_audioDevice);
         emit logMessage("音频输出就绪");
@@ -262,6 +262,9 @@ qint64 StreamPlayer::AudioDevice::readData(char *data, qint64 maxLen)
     int toRead = std::min(avail, wanted);
 
     if (toRead <= 0) return 0;
+
+    [[maybe_unused]] static bool logged = false;
+    if (!logged) { logged = true; fprintf(stderr, "AUDIO: readData called, maxLen=%lld avail=%d toRead=%d\n", (long long)maxLen, avail, toRead); }
 
     float vol = *m_vol;
     auto *dst = reinterpret_cast<int16_t *>(data);
