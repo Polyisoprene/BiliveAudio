@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QThread>
+#include <QMutex>
 #include <cstdint>
 #include <atomic>
 
@@ -67,6 +68,8 @@ private:
     int16_t m_buf[kBufSize];
     std::atomic<int> m_wp{0};
     std::atomic<int> m_rp{0};
+
+    QMutex m_alsaMutex;
 
     int m_volume = 80;
     bool m_playing = false;

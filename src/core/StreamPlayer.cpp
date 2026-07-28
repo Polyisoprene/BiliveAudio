@@ -29,33 +29,9 @@ void StreamPlayer::stop()
     m_running = false;
     m_paused = false;
 
-#ifdef _WIN32
-    if (m_audioThread) {
-        m_audioThread->quit();
-        m_audioThread->wait(3000);
-        m_audioThread = nullptr;
-    }
-    if (m_audioClient) {
-        m_audioClient->Stop();
-        m_audioClient->Release();
-        m_audioClient = nullptr;
-    }
-    if (m_renderClient) {
-        m_renderClient->Release();
-        m_renderClient = nullptr;
-    }
-    if (m_audioEvent) {
-        CloseHandle(m_audioEvent);
-        m_audioEvent = nullptr;
-    }
-#endif
-#ifdef __linux__
-    if (m_pcm) {
-        snd_pcm_drain(m_pcm);
-        snd_pcm_close(m_pcm);
-        m_pcm = nullptr;
-    }
-#endif
+    // Interrupt ffmpeg network I/O so av_read_frame stops blocking
+    if (m_fmtCtx)
+        avformat_close_input(&m_fmtCtx);
 
     if (m_thread) {
         m_thread->quit();
@@ -63,9 +39,26 @@ void StreamPlayer::stop()
         m_thread = nullptr;
     }
 
+    // Thread has exited — clean up anything it might have left
+#ifdef _WIN32
+    if (m_audioThread) {
+        m_audioThread->quit();
+        m_audioThread->wait(3000);
+        m_audioThread = nullptr;
+    }
+    if (m_audioClient) { m_audioClient->Stop(); m_audioClient->Release(); m_audioClient = nullptr; }
+    if (m_renderClient) { m_renderClient->Release(); m_renderClient = nullptr; }
+    if (m_audioEvent) { CloseHandle(m_audioEvent); m_audioEvent = nullptr; }
+#endif
+#ifdef __linux__
+    {
+        QMutexLocker lock(&m_alsaMutex);
+        if (m_pcm) { snd_pcm_drain(m_pcm); snd_pcm_close(m_pcm); m_pcm = nullptr; }
+    }
+#endif
+
     if (m_swrCtx) { swr_free(&m_swrCtx); m_swrCtx = nullptr; }
     if (m_codecCtx) { avcodec_free_context(&m_codecCtx); }
-    if (m_fmtCtx) { avformat_close_input(&m_fmtCtx); }
 
     m_wp.store(0);
     m_rp.store(0);
@@ -134,6 +127,7 @@ static int alsaSetParams(snd_pcm_t *pcm)
 
 void StreamPlayer::drainToAlsa()
 {
+    QMutexLocker lock(&m_alsaMutex);
     if (!m_pcm) return;
 
     snd_pcm_sframes_t avail = snd_pcm_avail_update(m_pcm);
@@ -403,7 +397,7 @@ void StreamPlayer::decodeLoop()
     avformat_close_input(&m_fmtCtx);
 
 #ifdef __linux__
-    if (m_pcm) { snd_pcm_drain(m_pcm); snd_pcm_close(m_pcm); m_pcm = nullptr; }
+    { QMutexLocker lock(&m_alsaMutex); if (m_pcm) { snd_pcm_drain(m_pcm); snd_pcm_close(m_pcm); m_pcm = nullptr; } }
 #endif
 
     m_running = false;
