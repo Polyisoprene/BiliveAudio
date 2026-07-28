@@ -208,6 +208,7 @@ void StreamPlayer::decodeLoop()
     av_dict_set(&opts, "reconnect_delay_max", "5", 0);
     av_dict_set(&opts, "fflags", "nobuffer", 0);
     av_dict_set(&opts, "probesize", "500000", 0);
+    av_dict_set(&opts, "analyzeduration", "500000", 0);
     av_dict_set(&opts, "referer", "https://live.bilibili.com/", 0);
     av_dict_set(&opts, "user_agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36", 0);
     av_dict_set(&opts, "timeout", "10000000", 0);
@@ -224,6 +225,12 @@ void StreamPlayer::decodeLoop()
 
     int audioIdx = av_find_best_stream(fmtCtx.get(), AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
     if (audioIdx < 0) { failExit("错误: 未找到音频流"); return; }
+
+    // Discard all non-audio streams so FFmpeg releases video decoder resources
+    for (unsigned i = 0; i < fmtCtx->nb_streams; i++) {
+        if ((int)i != audioIdx)
+            fmtCtx->streams[i]->discard = AVDISCARD_ALL;
+    }
 
     const AVStream *stream = fmtCtx->streams[audioIdx];
     const AVCodec *codec = avcodec_find_decoder(stream->codecpar->codec_id);
