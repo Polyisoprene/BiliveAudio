@@ -306,6 +306,8 @@ void DanmakuManager::handleDanmuMsg(const QJsonArray &info)
     // Avatar URL from info[2][7]
     if (userInfo.size() > 7)
         dm.faceUrl = userInfo[7].toString();
+    if (!dm.faceUrl.startsWith("http"))
+        dm.faceUrl.clear();
 
     // Fetch face via API if not in WebSocket data
     if (dm.faceUrl.isEmpty() && !dm.uid.isEmpty()) {

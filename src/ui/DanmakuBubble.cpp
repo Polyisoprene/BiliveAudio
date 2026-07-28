@@ -165,7 +165,7 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
 
         auto *nam = new QNetworkAccessManager(this);
         QNetworkRequest req(QUrl(m_dm.faceUrl));
-        req.setRawHeader("User-Agent", "Mozilla/5.0");
+        req.setRawHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
         req.setRawHeader("Referer", "https://live.bilibili.com/");
         auto *reply = nam->get(req);
         QPointer<DanmakuBubble> self(this);
@@ -173,7 +173,9 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
             reply->deleteLater();
             nam->deleteLater();
             if (reply->error() != QNetworkReply::NoError) {
-                fprintf(stderr, "AVATAR 下载失败 uid=%s error=%d\n", qPrintable(uid), reply->error());
+                fprintf(stderr, "AVATAR 下载失败 uid=%s err=%d url=%s\n",
+                        qPrintable(uid), reply->error(),
+                        qPrintable(reply->url().toString()));
                 return;
             }
             QPixmap av;
