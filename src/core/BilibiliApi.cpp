@@ -338,6 +338,13 @@ void BilibiliApi::getDanmuInfo(qint64 roomId)
     QString url = signUrl(rawUrl);
     LOG_INFO("getDanmuInfo URL: {}", url.toStdString());
 
+    // Cancel any in-flight request from previous room
+    if (m_danmuInfoReply) {
+        m_danmuInfoReply->abort();
+        m_danmuInfoReply->deleteLater();
+        m_danmuInfoReply = nullptr;
+    }
+
     // Use dedicated QNetworkAccessManager to avoid shared state issues
     auto *nam = new QNetworkAccessManager(this);
     nam->setProxy(QNetworkProxy::NoProxy);
@@ -349,7 +356,10 @@ void BilibiliApi::getDanmuInfo(qint64 roomId)
     request.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
 
     auto *reply = nam->get(request);
+    m_danmuInfoReply = reply;
     connect(reply, &QNetworkReply::finished, this, [this, nam, reply, roomId]() {
+        if (m_danmuInfoReply == reply)
+            m_danmuInfoReply = nullptr;
         nam->deleteLater();
         reply->deleteLater();
         QByteArray output = reply->readAll();
@@ -456,6 +466,17 @@ void BilibiliApi::doFetchUserFace(qint64 uid, int retryCount)
             emit userFaceReady(uid, face);
         }
     });
+}
+
+void BilibiliApi::cancelFaceRetries()
+{
+    for (auto &entry : m_faceRetries) {
+        if (entry.timer) {
+            entry.timer->stop();
+            delete entry.timer;
+        }
+    }
+    m_faceRetries.clear();
 }
 
 void BilibiliApi::scheduleRetry(qint64 uid, int retryCount)

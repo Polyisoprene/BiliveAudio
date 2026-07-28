@@ -58,20 +58,25 @@ DanmakuBubble::DanmakuBubble(const Danmaku &dm, QWidget *parent)
 
 DanmakuBubble::~DanmakuBubble() = default;
 
+static QNetworkAccessManager *s_avatarNam()
+{
+    static auto *nam = new QNetworkAccessManager;
+    return nam;
+}
+
 void DanmakuBubble::startDownload()
 {
     if (m_downloading) return;
     m_downloading = true;
 
-    auto *nam = new QNetworkAccessManager(this);
+    auto *nam = s_avatarNam();
     QNetworkRequest req{QUrl(m_dm.faceUrl)};
     req.setRawHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
     req.setRawHeader("Referer", "https://live.bilibili.com/");
     auto *reply = nam->get(req);
     QPointer<DanmakuBubble> self(this);
-    connect(reply, &QNetworkReply::finished, this, [reply, nam, uid = m_dm.uid, origUrl = m_dm.faceUrl, self]() {
+    connect(reply, &QNetworkReply::finished, this, [reply, uid = m_dm.uid, origUrl = m_dm.faceUrl, self]() {
         reply->deleteLater();
-        nam->deleteLater();
         if (reply->error() != QNetworkReply::NoError) return;
         QByteArray data = reply->readAll();
 

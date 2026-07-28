@@ -123,6 +123,7 @@ void DanmakuManager::disconnectRoom()
     m_heartbeatTimer->stop();
     m_reconnectTimer->stop();
     m_reconnectRetry = 0;
+    m_api->cancelFaceRetries();
     if (m_ws) m_ws->close();
     m_connected = false;
     m_roomId = 0;

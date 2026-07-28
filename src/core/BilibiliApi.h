@@ -25,6 +25,7 @@ public:
     void getDanmuInfo(qint64 roomId);
     void sendLiveDanmaku(qint64 roomId, const QString &text);
     void fetchUserFace(qint64 uid);
+    void cancelFaceRetries();
 
 signals:
     void qrCodeFetched(const QString &url, const QString &key);
@@ -47,6 +48,7 @@ private:
     void doFetchUserFace(qint64 uid, int retryCount);
     void scheduleRetry(qint64 uid, int retryCount);
 
+    QNetworkReply *m_danmuInfoReply = nullptr;
     QNetworkAccessManager *m_nam = nullptr;
     QString m_cookie;
     QString m_csrfToken;
