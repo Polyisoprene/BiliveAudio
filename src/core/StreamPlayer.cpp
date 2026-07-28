@@ -219,18 +219,20 @@ void StreamPlayer::decodeLoop()
 
         ret = av_read_frame(fmtCtx.get(), pkt);
         if (ret < 0) {
-            if (ret == AVERROR_EXIT) break;
+            if (ret == AVERROR_EXIT) { emit logMessage("av_read_frame 被中断"); break; }
             if (ret == AVERROR_EOF) {
-                emit logMessage("流 EOF, 1 秒后重试...");
-                av_packet_unref(pkt);
-                int i = 0;
-                while (m_running && ++i <= 30) QThread::msleep(100);
+                emit logMessage("流 EOF, 3 秒内重试...");
+                for (int i = 0; m_running && i < 30; i++) QThread::msleep(100);
                 if (!m_running) break;
-                if (i > 30) { emit logMessage("重试超时"); break; }
+                emit logMessage("EOF 重试结束, 继续");
                 continue;
             }
+            emit logMessage(QString("av_read_frame 错误: %1").arg(ret));
             QThread::msleep(100); av_packet_unref(pkt); continue;
         }
+        static int pktCount = 0;
+        if ((++pktCount % 50) == 0)
+            emit logMessage(QString("读取到包 #%1, stream=%2").arg(pktCount).arg(pkt->stream_index));
 
         if (pkt->stream_index != audioIdx) { av_packet_unref(pkt); continue; }
 
