@@ -70,7 +70,7 @@ jobs:
           files: BiliveAudio-x86_64.AppImage
           tag: ${{ github.ref }}
 
-  windows:
+  build_ffmpeg:
     runs-on: windows-latest
     defaults:
       run:
@@ -78,7 +78,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup vcpkg
+      - name: Setup vcpkg (ffmpeg only)
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: vcpkg.ffmpeg.json
+          additionalFileNames: |
+            vcpkg-configuration.json
+            vcpkg-overlay/ports/ffmpeg/portfile.cmake
+            vcpkg-overlay/ports/ffmpeg/vcpkg.json
+
+      - name: Upload ffmpeg libs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-libs
+          path: vcpkg_installed/x64-windows/
+          retention-days: 1
+
+  windows:
+    needs: build_ffmpeg
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download ffmpeg libs
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-libs
+          path: ffmpeg_artifacts
+
+      - name: Setup vcpkg (other deps)
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json
@@ -92,6 +123,16 @@ jobs:
           arch: win64_msvc2022_64
           modules: qtwebsockets qtmultimedia
           cache: true
+
+      - name: Merge ffmpeg into vcpkg_installed
+        run: |
+          $target = "vcpkg_installed\x64-windows"
+          if (-not (Test-Path $target)) { New-Item -ItemType Directory -Force -Path $target | Out-Null }
+          Copy-Item -Recurse -Force "ffmpeg_artifacts\include" "$target\"
+          Copy-Item -Recurse -Force "ffmpeg_artifacts\lib" "$target\"
+          Copy-Item -Recurse -Force "ffmpeg_artifacts\bin" "$target\"
+          Copy-Item -Recurse -Force "ffmpeg_artifacts\share" "$target\"
+          Write-Host "ffmpeg merged into vcpkg_installed"
 
       - name: Build
         run: |
