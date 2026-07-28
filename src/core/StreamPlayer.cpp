@@ -63,6 +63,12 @@ void StreamPlayer::setVolume(int percent)
 
 int StreamPlayer::volume() const { return m_volume; }
 
+// Interrupt callback — ffmpeg calls this during blocking I/O
+static int interruptCb(void *ctx)
+{
+    return *static_cast<std::atomic<bool>*>(ctx) ? 0 : 1;
+}
+
 // ── decodeLoop ── all resources are RAII locals, no class members
 void StreamPlayer::decodeLoop()
 {
@@ -88,6 +94,8 @@ void StreamPlayer::decodeLoop()
         emit logMessage("错误: avformat_open_input 失败");
         m_running = false; return;
     }
+    rawFmt->interrupt_callback.callback = interruptCb;
+    rawFmt->interrupt_callback.opaque = &m_running;
     std::unique_ptr<AVFormatContext, AvFmtDeleter> fmtCtx(rawFmt);
 
     if (avformat_find_stream_info(fmtCtx.get(), nullptr) < 0) {
@@ -211,7 +219,16 @@ void StreamPlayer::decodeLoop()
 
         ret = av_read_frame(fmtCtx.get(), pkt);
         if (ret < 0) {
-            if (ret == AVERROR_EOF || ret == AVERROR_EXIT) break;
+            if (ret == AVERROR_EXIT) break;
+            if (ret == AVERROR_EOF) {
+                emit logMessage("流 EOF, 1 秒后重试...");
+                av_packet_unref(pkt);
+                int i = 0;
+                while (m_running && ++i <= 30) QThread::msleep(100);
+                if (!m_running) break;
+                if (i > 30) { emit logMessage("重试超时"); break; }
+                continue;
+            }
             QThread::msleep(100); av_packet_unref(pkt); continue;
         }
 
@@ -254,4 +271,5 @@ void StreamPlayer::decodeLoop()
     av_frame_free(&frame);
     av_packet_free(&pkt);
     emit logMessage("decodeLoop() 线程结束");
+    emit stopped("eof");
 }
