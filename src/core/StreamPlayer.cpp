@@ -126,7 +126,7 @@ static int alsaSetParams(snd_pcm_t *pcm)
     snd_pcm_sw_params_current(pcm, sw);
     snd_pcm_uframes_t boundary;
     snd_pcm_sw_params_get_boundary(sw, &boundary);
-    snd_pcm_sw_params_set_start_threshold(pcm, sw, 0);
+    snd_pcm_sw_params_set_start_threshold(pcm, sw, 1);
     snd_pcm_sw_params_set_stop_threshold(pcm, sw, boundary);
     snd_pcm_sw_params(pcm, sw);
     return 0;
@@ -135,13 +135,7 @@ static int alsaSetParams(snd_pcm_t *pcm)
 void StreamPlayer::drainToAlsa()
 {
     if (!m_pcm) return;
-    struct pollfd pfd;
-    int count = snd_pcm_poll_descriptors(m_pcm, &pfd, 1);
-    if (count <= 0) return;
-    if (::poll(&pfd, 1, 0) <= 0 || !(pfd.revents & POLLOUT)) return;
-    unsigned short revents;
-    snd_pcm_poll_descriptors_revents(m_pcm, &pfd, 1, &revents);
-    if (revents & POLLERR) { snd_pcm_prepare(m_pcm); return; }
+
     snd_pcm_sframes_t avail = snd_pcm_avail_update(m_pcm);
     if (avail <= 0) return;
     int wp = m_wp.load(std::memory_order_acquire);
@@ -158,16 +152,27 @@ void StreamPlayer::drainToAlsa()
             for (int i = 0; i < chunk; i++)
                 tmp[i] = static_cast<int16_t>(m_buf[(rp + pos + i) & kBufMask] * vol);
             snd_pcm_sframes_t w = snd_pcm_writei(m_pcm, tmp, chunk / 2);
-            if (w < 0) { if (w != -EAGAIN) snd_pcm_prepare(m_pcm); return; }
+            if (w < 0) {
+                if (w == -EAGAIN) return;
+                emit logMessage(QString("ALSA 写入错误: %1").arg(QString::fromUtf8(snd_strerror(static_cast<int>(w)))));
+                snd_pcm_prepare(m_pcm); return;
+            }
             pos += w * 2;
         }
         m_rp.store((rp + pos) & kBufMask, std::memory_order_release);
     } else {
         auto *src = reinterpret_cast<const int16_t *>(m_buf);
         snd_pcm_sframes_t w = snd_pcm_writei(m_pcm, src + rp, frames);
-        if (w > 0)
+        if (w > 0) {
             m_rp.store((rp + w * 2) & kBufMask, std::memory_order_release);
-        else if (w == -EPIPE) snd_pcm_prepare(m_pcm);
+        } else {
+            if (w == -EPIPE) {
+                emit logMessage("ALSA 欠载, 复位中...");
+                snd_pcm_prepare(m_pcm);
+            } else if (w != -EAGAIN) {
+                emit logMessage(QString("ALSA 写入错误: %1").arg(QString::fromUtf8(snd_strerror(static_cast<int>(w)))));
+            }
+        }
     }
 }
 #endif
@@ -343,6 +348,7 @@ void StreamPlayer::decodeLoop()
     // ── Decode loop ──
     AVPacket *pkt = av_packet_alloc();
     AVFrame *frame = av_frame_alloc();
+    int totalWritten = 0;
 
     while (m_running) {
         if (m_paused) { QThread::msleep(50); continue; }
@@ -379,6 +385,9 @@ void StreamPlayer::decodeLoop()
                     for (int i = 0; i < count; i++)
                         m_buf[(wp + i) & kBufMask] = samples[i];
                     m_wp.store((wp + count) & kBufMask, std::memory_order_release);
+                    totalWritten += count;
+                    if ((totalWritten % 88200) == 0)
+                        emit logMessage(QString("播放中... %1 帧已解码").arg(totalWritten / 2));
                 }
             }
             av_freep(&out[0]);
