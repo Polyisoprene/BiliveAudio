@@ -66,6 +66,8 @@ set(HEADERS
     src/models/Danmaku.h
 )
 
+option(BUILD_TESTS "Build unit tests" OFF)
+
 set(RESOURCES resources/resources.qrc)
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${RESOURCES})
@@ -93,4 +95,9 @@ else()
         PkgConfig::QRENCODE
         ${JEMALLOC_LIB}
     )
+endif()
+
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
 endif()
