@@ -11,7 +11,6 @@ extern "C" {
 #include <libswresample/swresample.h>
 }
 
-// RAII deleters for C resources
 struct AvFmtDeleter {
     void operator()(AVFormatContext *p) const { if (p) avformat_close_input(&p); }
 };
@@ -44,8 +43,10 @@ signals:
 
 private:
     void decodeLoop();
+    void wasapiPullLoop();
 
     QThread *m_thread = nullptr;
+    QThread *m_audioThread = nullptr;
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_paused{false};
 
