@@ -101,6 +101,9 @@ void StreamPlayer::decodeLoop()
     av_dict_set(&opts, "reconnect_delay_max", "5", 0);
     av_dict_set(&opts, "fflags", "nobuffer", 0);
     av_dict_set(&opts, "probesize", "50000", 0);
+    av_dict_set(&opts, "referer", "https://live.bilibili.com/", 0);
+    av_dict_set(&opts, "user_agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36", 0);
+    av_dict_set(&opts, "timeout", "10000000", 0);
 
     if (avformat_open_input(&m_fmtCtx, m_streamUrl.toUtf8().constData(), nullptr, &opts) != 0) {
         emit error("无法打开流");
