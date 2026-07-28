@@ -179,6 +179,12 @@ void StreamPlayer::decodeLoop()
     auto drainAlsa = [&]() {
 #ifdef __linux__
         if (!pcm) return;
+        snd_pcm_state_t state = snd_pcm_state(pcm.get());
+        if (state != SND_PCM_STATE_RUNNING && state != SND_PCM_STATE_PREPARED) {
+            emit logMessage(QString("ALSA 异常状态: %1, 复位").arg(state));
+            snd_pcm_prepare(pcm.get());
+            snd_pcm_start(pcm.get());
+        }
         snd_pcm_sframes_t avail = snd_pcm_avail_update(pcm.get());
         if (avail <= 0) return;
         int wp = m_wp.load(std::memory_order_acquire);
@@ -196,34 +202,44 @@ void StreamPlayer::decodeLoop()
                     tmp[i] = static_cast<int16_t>(m_buf[(rp + pos + i) & kBufMask] * vol);
                 snd_pcm_sframes_t w = snd_pcm_writei(pcm.get(), tmp, chunk / 2);
                 if (w < 0) {
+                    emit logMessage(QString("ALSA vol写 %1 帧返回值=%2").arg(chunk/2).arg(static_cast<int>(w)));
                     if (w == -EAGAIN) return;
                     if (w == -EPIPE || w == -EBADFD) {
                         emit logMessage("ALSA 复位重启...");
                         snd_pcm_prepare(pcm.get());
                         snd_pcm_start(pcm.get());
+                        return;
                     }
+                    emit logMessage(QString("ALSA 写错误: %1, 状态=%2").arg(static_cast<int>(w)).arg(snd_pcm_state(pcm.get())));
                     return;
                 }
                 pos += w * 2;
             }
             m_rp.store((rp + pos) & kBufMask, std::memory_order_release);
-    } else {
-        auto *src = reinterpret_cast<const int16_t *>(m_buf);
-        snd_pcm_sframes_t w = snd_pcm_writei(pcm.get(), src + rp, frames);
-        if (w > 0) {
-            m_rp.store((rp + w * 2) & kBufMask, std::memory_order_release);
-        } else if (w == -EPIPE) {
-            emit logMessage("ALSA 欠载, 复位重启...");
-            snd_pcm_prepare(pcm.get());
-            snd_pcm_start(pcm.get());
-        } else if (w == -EBADFD) {
-            emit logMessage("ALSA 状态异常, 重启...");
-            snd_pcm_prepare(pcm.get());
-            snd_pcm_start(pcm.get());
-        } else if (w < 0) {
-            emit logMessage(QString("ALSA 写入错误: %1").arg(static_cast<int>(w)));
+            emit logMessage(QString("ALSA vol写入 %1 帧成功, buf=%2").arg(pos/2).arg((m_wp.load()-m_rp.load())&kBufMask));
+        } else {
+            auto *src = reinterpret_cast<const int16_t *>(m_buf);
+            snd_pcm_sframes_t w = snd_pcm_writei(pcm.get(), src + rp, frames);
+            emit logMessage(QString("ALSA 裸写 avail=%1 frames=%2 w=%3 stat=%4").arg(avail).arg(frames).arg(static_cast<int>(w)).arg(snd_pcm_state(pcm.get())));
+            if (w > 0) {
+                m_rp.store((rp + w * 2) & kBufMask, std::memory_order_release);
+                emit logMessage(QString("ALSA 裸写 %1 帧成功").arg(w));
+            } else if (w == -EPIPE) {
+                emit logMessage("ALSA 欠载, 复位重启...");
+                snd_pcm_prepare(pcm.get());
+                snd_pcm_start(pcm.get());
+            } else if (w == -EBADFD) {
+                emit logMessage("ALSA 状态异常, 重启...");
+                snd_pcm_prepare(pcm.get());
+                snd_pcm_start(pcm.get());
+            } else if (w < 0) {
+                emit logMessage(QString("ALSA 写错误: %1, 状态=%2").arg(static_cast<int>(w)).arg(snd_pcm_state(pcm.get())));
+            }
+            // Also log when we actually write successfully
+            static int drainCount = 0;
+            if ((++drainCount % 100) == 0)
+                emit logMessage(QString("ALSA drain #%1: state=%2 avail=%3 buf=%4").arg(drainCount).arg(snd_pcm_state(pcm.get())).arg(avail).arg(bufAvail));
         }
-    }
 #endif
     };
 
