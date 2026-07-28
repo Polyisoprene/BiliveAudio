@@ -317,9 +317,15 @@ void DanmakuManager::handleDanmuMsg(const QJsonArray &info)
 
     // Face URL from info[0][13].user.base.face (new Bilibili protocol)
     auto info0 = info[0].toArray();
+    LOG_DEBUG("handleDanmuMsg info0.size={}", info0.size());
     if (info0.size() > 13 && info0[13].isObject()) {
-        auto userObj = info0[13].toObject()["user"].toObject();
+        auto obj13 = info0[13].toObject();
+        auto userObj = obj13["user"].toObject();
         dm.faceUrl = userObj["base"].toObject()["face"].toString();
+        LOG_DEBUG("handleDanmuMsg faceUrl from info[0][13]: {}", dm.faceUrl.toStdString());
+    } else {
+        LOG_DEBUG("handleDanmuMsg no faceUrl in info[0][13] (size={}, isObject={})",
+                  info0.size(), info0.size() > 13 ? info0[13].isObject() : false);
     }
     if (!dm.faceUrl.startsWith("http"))
         dm.faceUrl.clear();

@@ -1,15 +1,21 @@
 #include "DanmakuBubble.h"
+#include "core/DanmakuManager.h"
 #include <QPainter>
 #include <QPainterPath>
 #include <QFontMetrics>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QNetworkProxy>
 #include <QImageReader>
 #include <QBuffer>
 #include <QResizeEvent>
+#include <QDir>
+#include <QCryptographicHash>
+#include <QFile>
 #include <QPointer>
 #include <QTimer>
+#include <QStandardPaths>
 
 static const int kMaxCached = 64;
 static QMap<QString, QPixmap> s_memCache;
@@ -26,6 +32,32 @@ static void touchCache(const QString &uid)
 }
 
 static constexpr int kCachePixmapSize = 48;
+
+static QString cacheDir()
+{
+    QString dir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/cache/avatars";
+    QDir().mkpath(dir);
+    return dir;
+}
+
+static QString avatarPath(const QString &uid, const QString &faceUrl)
+{
+    QString key = QCryptographicHash::hash(
+        (uid + "|" + faceUrl).toUtf8(), QCryptographicHash::Md5).toHex();
+    return cacheDir() + "/" + key + ".png";
+}
+
+static QPixmap loadFromDisk(const QString &path)
+{
+    QPixmap p;
+    p.load(path);
+    return p;
+}
+
+static void saveToDisk(const QString &path, const QPixmap &pix)
+{
+    pix.save(path, "PNG");
+}
 
 static QPixmap scaledForCache(const QPixmap &src)
 {
@@ -61,6 +93,7 @@ DanmakuBubble::~DanmakuBubble() = default;
 static QNetworkAccessManager *s_avatarNam()
 {
     static auto *nam = new QNetworkAccessManager;
+    nam->setProxy(QNetworkProxy::NoProxy);
     return nam;
 }
 
@@ -173,6 +206,24 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
 
     QPixmap avatar;
     bool haveAvatar = false;
+
+    // Fallback: if faceUrl empty, check DanmakuManager faceCache
+    if (!haveAvatar && m_dm.faceUrl.isEmpty() && !m_dm.uid.isEmpty()) {
+        QString cached = DanmakuManager::lookupFaceUrl(m_dm.uid);
+        if (!cached.isEmpty())
+            const_cast<DanmakuBubble *>(this)->m_dm.faceUrl = cached;
+    }
+
+    // Disk cache: if faceUrl available but not in memory, try disk
+    if (!haveAvatar && !m_dm.faceUrl.isEmpty()) {
+        QString path = avatarPath(m_dm.uid, m_dm.faceUrl);
+        avatar = loadFromDisk(path);
+        if (!avatar.isNull()) {
+            s_memCache[m_dm.uid] = scaledForCache(avatar);
+            touchCache(m_dm.uid);
+            haveAvatar = true;
+        }
+    }
 
     if (s_memCache.contains(m_dm.uid) && !s_memCache[m_dm.uid].isNull()) {
         avatar = s_memCache[m_dm.uid];
