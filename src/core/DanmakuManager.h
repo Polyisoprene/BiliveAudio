@@ -3,8 +3,6 @@
 #include <QWebSocket>
 #include <QTimer>
 #include <QMap>
-#include <QQueue>
-#include <QSet>
 #include "models/Danmaku.h"
 #include "BilibiliApi.h"
 
@@ -64,9 +62,4 @@ private:
     void handleSuperChat(const QJsonObject &data);
     void handleGift(const QJsonObject &data);
 
-    void enqueueFaceFetch(qint64 uid);
-    void processFaceQueue();
-    QTimer *m_faceFetchTimer = nullptr;
-    QQueue<qint64> m_faceFetchQueue;
-    QSet<qint64> m_faceFetchPending;
 };

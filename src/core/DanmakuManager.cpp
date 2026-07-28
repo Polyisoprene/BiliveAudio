@@ -52,18 +52,10 @@ DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
             + QUuid::createUuid().toString(QUuid::WithoutBraces).left(4)
             + "infoc";
 
-    m_faceFetchTimer = new QTimer(this);
-    m_faceFetchTimer->setInterval(300);
-    connect(m_faceFetchTimer, &QTimer::timeout, this, &DanmakuManager::processFaceQueue);
-
     auto *memLogTimer = new QTimer(this);
     memLogTimer->setInterval(30000);
     connect(memLogTimer, &QTimer::timeout, this, [this] {
-        // BilibiliApi::m_faceRetries is private; estimate via a simple approach
-        auto *bapi = qobject_cast<BilibiliApi*>(m_api);
-        Q_UNUSED(bapi);
-        LOG_DEBUG("Mem report: faceCache={} pending={} queue={}",
-                  faceCache.size(), m_faceFetchPending.size(), m_faceFetchQueue.size());
+        LOG_DEBUG("Mem report: faceCache={}", faceCache.size());
     });
     memLogTimer->start();
 
@@ -101,8 +93,6 @@ DanmakuManager::~DanmakuManager()
 
 void DanmakuManager::connectRoom(qint64 roomId)
 {
-    LOG_DEBUG("Mem: faceCache={} faceFetchPending={} faceFetchQueue={}",
-              faceCache.size(), m_faceFetchPending.size(), m_faceFetchQueue.size());
     m_roomId = roomId;
     m_reconnectRetry = 0;
     emit logMessage(QString("弹幕: 正在获取房间 %1 的服务器信息...").arg(roomId));
@@ -132,9 +122,6 @@ void DanmakuManager::disconnectRoom()
 {
     m_heartbeatTimer->stop();
     m_reconnectTimer->stop();
-    m_faceFetchTimer->stop();
-    m_faceFetchQueue.clear();
-    m_faceFetchPending.clear();
     m_reconnectRetry = 0;
     if (m_ws) m_ws->close();
     m_connected = false;
@@ -336,13 +323,9 @@ void DanmakuManager::handleDanmuMsg(const QJsonArray &info)
     if (!dm.faceUrl.startsWith("http"))
         dm.faceUrl.clear();
 
-    // Fallback to cache, or enqueue API fetch
-    if (dm.faceUrl.isEmpty() && !dm.uid.isEmpty()) {
-        if (faceCache.contains(dm.uid))
-            dm.faceUrl = faceCache[dm.uid];
-        else
-            enqueueFaceFetch(dm.uid.toLongLong());
-    }
+    // Fallback to cached face URL from previous API fetch
+    if (dm.faceUrl.isEmpty() && !dm.uid.isEmpty() && faceCache.contains(dm.uid))
+        dm.faceUrl = faceCache[dm.uid];
 
     // Fans medal from info[3] — can be an object or array
     if (info.size() > 3) {
@@ -391,28 +374,6 @@ void DanmakuManager::handleGift(const QJsonObject &data)
     dm.type = "gift";
     dm.text = QString("送出 %1 x%2").arg(dm.giftName).arg(dm.giftCount);
     emit danmakuReceived(dm);
-}
-
-void DanmakuManager::enqueueFaceFetch(qint64 uid)
-{
-    if (uid <= 0 || m_faceFetchPending.contains(uid)) return;
-    m_faceFetchPending.insert(uid);
-    m_faceFetchQueue.enqueue(uid);
-    if (!m_faceFetchTimer->isActive())
-        m_faceFetchTimer->start();
-}
-
-void DanmakuManager::processFaceQueue()
-{
-    while (!m_faceFetchQueue.isEmpty()) {
-        qint64 uid = m_faceFetchQueue.dequeue();
-        m_faceFetchPending.remove(uid);
-        QString ustr = QString::number(uid);
-        if (faceCache.contains(ustr)) continue;
-        m_api->fetchUserFace(uid);
-        return;
-    }
-    m_faceFetchTimer->stop();
 }
 
 void DanmakuManager::sendHeartbeat()
