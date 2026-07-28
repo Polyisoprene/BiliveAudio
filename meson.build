@@ -14,6 +14,7 @@ if host_machine.system() == 'linux'
   mpv_dep = dependency('mpv', method: 'pkg-config')
   brotli_dep = dependency('libbrotlidec', method: 'pkg-config')
   qrencode_dep = dependency('libqrencode', method: 'pkg-config')
+  jemalloc_dep = declare_dependency(link_args: '-ljemalloc')
 else
   brotli_dep = dependency('brotli', required: false)
   qrencode_dep = dependency('libqrencode', required: false)
@@ -67,7 +68,7 @@ processed = qt6.preprocess(
 all_deps = [qt6_dep, spdlog_dep]
 
 if host_machine.system() == 'linux'
-  all_deps += [mpv_dep, brotli_dep, qrencode_dep]
+  all_deps += [mpv_dep, brotli_dep, qrencode_dep, jemalloc_dep]
 endif
 
 executable('BiliveAudio',

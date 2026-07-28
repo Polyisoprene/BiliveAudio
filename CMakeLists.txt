@@ -84,11 +84,13 @@ if(WIN32)
     )
     set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
 else()
+    find_library(JEMALLOC_LIB jemalloc)
     target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets
         spdlog::spdlog
         PkgConfig::MPV
         PkgConfig::BROTLIDEC
         PkgConfig::QRENCODE
+        ${JEMALLOC_LIB}
     )
 endif()
