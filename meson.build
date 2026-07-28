@@ -1,5 +1,5 @@
 project('biliveaudio', 'cpp',
-  version: '1.0.0',
+  version: '1.2.1',
   default_options: ['cpp_std=c++20', 'buildtype=release', 'warning_level=0'])
 
 qt6 = import('qt6')
