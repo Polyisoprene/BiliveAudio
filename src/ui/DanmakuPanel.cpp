@@ -95,7 +95,9 @@ void DanmakuPanel::insertDanmaku(const Danmaku &dm)
     m_scrollAnim->setEasingCurve(QEasingCurve::OutCubic);
     m_scrollAnim->setStartValue(scroll->value());
     m_scrollAnim->setEndValue(scroll->maximum());
-    connect(m_scrollAnim, &QPropertyAnimation::finished, this, [this]() {
+    connect(m_scrollAnim, &QPropertyAnimation::finished, this, [this, scroll]() {
+        m_programmaticScroll = true;
+        scroll->setValue(scroll->maximum());
         m_programmaticScroll = false;
         m_scrollAnim->deleteLater();
         m_scrollAnim = nullptr;
