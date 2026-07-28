@@ -49,6 +49,7 @@ private:
     QThread *m_audioThread = nullptr;
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_paused{false};
+    std::atomic<int> m_playGeneration{0};
 
     QString m_streamUrl;
 

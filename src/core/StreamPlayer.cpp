@@ -22,9 +22,10 @@ void StreamPlayer::play(const QString &streamUrl)
     emit logMessage("play() 开始");
     stop();
     m_streamUrl = streamUrl;
+    int gen = ++m_playGeneration;
     m_running = true;
     m_playing = true;
-    m_thread = QThread::create([this] { decodeLoop(); });
+    m_thread = QThread::create([this, gen] { decodeLoop(); });
     connect(m_thread, &QThread::finished, m_thread, &QObject::deleteLater);
     m_thread->start();
     emit started();
@@ -48,8 +49,12 @@ void StreamPlayer::stop()
     if (m_thread) {
         emit logMessage("stop() 等待线程退出...");
         m_thread->quit();
-        if (!m_thread->wait(3000))
-            emit logMessage("stop() 警告: 线程未在 3 秒内退出");
+        if (!m_thread->wait(15000)) {
+            emit logMessage("stop() 强制终止卡住的线程");
+            m_thread->terminate();
+            m_thread->wait();
+        }
+        delete m_thread;
         m_thread = nullptr;
         emit logMessage("stop() 线程已退出");
     }
@@ -206,9 +211,9 @@ void StreamPlayer::decodeLoop()
     av_dict_set(&opts, "reconnect", "1", 0);
     av_dict_set(&opts, "reconnect_streamed", "1", 0);
     av_dict_set(&opts, "reconnect_delay_max", "5", 0);
-    av_dict_set(&opts, "fflags", "nobuffer", 0);
-    av_dict_set(&opts, "probesize", "500000", 0);
-    av_dict_set(&opts, "analyzeduration", "500000", 0);
+    av_dict_set(&opts, "fflags", "nobuffer+fastseek", 0);
+    av_dict_set(&opts, "probesize", "32000", 0);
+    av_dict_set(&opts, "analyzeduration", "10000", 0);
     av_dict_set(&opts, "referer", "https://live.bilibili.com/", 0);
     av_dict_set(&opts, "user_agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36", 0);
     av_dict_set(&opts, "timeout", "10000000", 0);
@@ -343,20 +348,24 @@ void StreamPlayer::decodeLoop()
     };
 #endif
 
-    while (m_running) {
+    int myGen = ++m_playGeneration;
+
+    while (m_running && m_playGeneration.load() == myGen) {
 #ifdef __linux__
         drainAlsa();
 #endif
-        if (m_paused) { QThread::msleep(50); continue; }
+        if (m_paused || m_playGeneration.load() != myGen) { QThread::msleep(50); continue; }
 
         ret = av_read_frame(fmtCtx.get(), pkt);
         if (ret < 0) {
             if (ret == AVERROR_EXIT) break;
             if (ret == AVERROR_EOF) {
-                for (int i = 0; m_running && i < 30; i++) QThread::msleep(100);
-                if (!m_running) break;
+                for (int i = 0; m_running && m_playGeneration.load() == myGen && i < 30; i++)
+                    QThread::msleep(100);
+                if (!m_running || m_playGeneration.load() != myGen) break;
                 av_packet_unref(pkt); continue;
             }
+            if (!m_running || m_playGeneration.load() != myGen) break;
             QThread::msleep(100); av_packet_unref(pkt); continue;
         }
 
