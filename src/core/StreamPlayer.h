@@ -60,6 +60,6 @@ private:
     std::atomic<int> m_wp{0};
     std::atomic<int> m_rp{0};
 
-    int m_volume = 80;
+    std::atomic<int> m_volume{80};
     bool m_playing = false;
 };
