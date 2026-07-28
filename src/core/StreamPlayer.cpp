@@ -162,9 +162,19 @@ void StreamPlayer::decodeLoop()
         fmt.setChannelCount(2);
         fmt.setSampleFormat(QAudioFormat::Float);
         auto device = QMediaDevices::defaultAudioOutput();
+        emit logMessage(QString("音频设备: %1").arg(device.description()));
+        if (device.isNull()) {
+            emit logMessage("错误: 无可用音频输出设备");
+            return;
+        }
         m_audioSink = new QAudioSink(device, fmt);
         m_audioSink->setVolume(m_volume / 100.0);
         m_audioDevice = m_audioSink->start();
+        if (!m_audioDevice) {
+            emit logMessage("危险: QAudioSink::start() 返回空");
+            return;
+        }
+        emit logMessage("音频输出就绪");
         m_feedTimer->start();
     }, Qt::BlockingQueuedConnection);
 
@@ -232,7 +242,12 @@ void StreamPlayer::decodeLoop()
 
 void StreamPlayer::feedAudio()
 {
-    if (!m_audioDevice || m_paused) return;
+    if (m_paused) return;
+    if (!m_audioDevice) {
+        static bool logged = false;
+        if (!logged) { emit logMessage("feed: 无音频设备"); logged = true; }
+        return;
+    }
     if (m_bufLevel < 4096) return;
 
     int chunk = qMin(m_bufLevel, 8192);
