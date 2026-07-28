@@ -165,6 +165,7 @@ void StreamPlayer::decodeLoop()
     snd_pcm_sw_params_set_start_threshold(pcm.get(), sw, 1);
     snd_pcm_sw_params_set_stop_threshold(pcm.get(), sw, boundary);
     snd_pcm_sw_params(pcm.get(), sw);
+    snd_pcm_start(pcm.get());
     emit logMessage("ALSA 设备就绪");
 #endif
 
