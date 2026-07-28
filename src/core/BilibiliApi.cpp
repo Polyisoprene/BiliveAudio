@@ -422,15 +422,60 @@ void BilibiliApi::fetchUserFace(qint64 uid)
     doFetchUserFace(uid, 0);
 }
 
-void BilibiliApi::doFetchUserFace(qint64 uid, int)
+void BilibiliApi::doFetchUserFace(qint64 uid, int retryCount)
 {
-    auto *reply = get(QString("%1/x/web-interface/card?mid=%2&photo=true&web_location=0.0").arg(BASE_API).arg(uid));
-    connect(reply, &QNetworkReply::finished, this, [this, reply, uid] {
+    QString url = QString("%1/x/web-interface/card?mid=%2&photo=true&web_location=0.0").arg(BASE_API).arg(uid);
+    auto *nam = new QNetworkAccessManager(this);
+    nam->setProxy(QNetworkProxy::NoProxy);
+    nam->setCookieJar(nullptr);
+    QNetworkRequest request{QUrl::fromEncoded(url.toUtf8())};
+    request.setRawHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+    request.setRawHeader("Referer", "https://live.bilibili.com/");
+    auto *reply = nam->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, nam, uid, retryCount] {
         reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) return;
+        nam->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            if (retryCount < kFaceRetryMax)
+                scheduleRetry(uid, retryCount + 1);
+            return;
+        }
         auto doc = QJsonDocument::fromJson(reply->readAll());
+        int code = doc.object()["code"].toInt(-1);
+        if (code != 0) {
+            if (retryCount < kFaceRetryMax)
+                scheduleRetry(uid, retryCount + 1);
+            else
+                emit userFaceReady(uid, {});
+            return;
+        }
         QString face = doc.object()["data"].toObject()["card"].toObject()["face"].toString();
-        if (!face.isEmpty())
+        if (face.isEmpty()) {
+            emit userFaceReady(uid, {});
+        } else {
             emit userFaceReady(uid, face);
+        }
     });
+}
+
+void BilibiliApi::scheduleRetry(qint64 uid, int retryCount)
+{
+    int delay = 1000 * (1 << retryCount);
+    auto &entry = m_faceRetries[uid];
+    if (entry.timer) {
+        entry.timer->stop();
+        delete entry.timer;
+    }
+    entry.retryCount = retryCount;
+    entry.timer = new QTimer(this);
+    entry.timer->setSingleShot(true);
+    connect(entry.timer, &QTimer::timeout, this, [this, uid]() {
+        auto it = m_faceRetries.find(uid);
+        if (it == m_faceRetries.end()) return;
+        int rc = it->retryCount;
+        it->timer->deleteLater();
+        m_faceRetries.erase(it);
+        doFetchUserFace(uid, rc);
+    });
+    entry.timer->start(delay);
 }

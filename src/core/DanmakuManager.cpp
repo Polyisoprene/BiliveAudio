@@ -42,8 +42,15 @@ DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
             + QUuid::createUuid().toString(QUuid::WithoutBraces).left(4)
             + "infoc";
 
+    m_faceFetchTimer = new QTimer(this);
+    m_faceFetchTimer->setInterval(300);
+    connect(m_faceFetchTimer, &QTimer::timeout, this, &DanmakuManager::processFaceQueue);
+
     connect(m_reconnectTimer, &QTimer::timeout, this, &DanmakuManager::tryReconnect);
     connect(m_api, &BilibiliApi::danmuInfoReady, this, &DanmakuManager::onDanmuInfoReady);
+    connect(m_api, &BilibiliApi::userFaceReady, this, [this](qint64 uid, const QString &url) {
+        faceCache[QString::number(uid)] = url;
+    });
 }
 
 void DanmakuManager::ensureWebSocket()
@@ -102,6 +109,9 @@ void DanmakuManager::disconnectRoom()
 {
     m_heartbeatTimer->stop();
     m_reconnectTimer->stop();
+    m_faceFetchTimer->stop();
+    m_faceFetchQueue.clear();
+    m_faceFetchPending.clear();
     m_reconnectRetry = 0;
     if (m_ws) m_ws->close();
     m_connected = false;
@@ -294,6 +304,20 @@ void DanmakuManager::handleDanmuMsg(const QJsonArray &info)
     dm.timestamp = QDateTime::currentSecsSinceEpoch();
     dm.type = "danmaku";
 
+    // Face URL from WebSocket data
+    if (userInfo.size() > 7)
+        dm.faceUrl = userInfo[7].toString();
+    if (!dm.faceUrl.startsWith("http"))
+        dm.faceUrl.clear();
+
+    // Fallback to cache, or enqueue API fetch
+    if (dm.faceUrl.isEmpty() && !dm.uid.isEmpty()) {
+        if (faceCache.contains(dm.uid))
+            dm.faceUrl = faceCache[dm.uid];
+        else
+            enqueueFaceFetch(dm.uid.toLongLong());
+    }
+
     // Fans medal from info[3] — can be an object or array
     if (info.size() > 3) {
         if (info[3].isObject()) {
@@ -341,6 +365,28 @@ void DanmakuManager::handleGift(const QJsonObject &data)
     dm.type = "gift";
     dm.text = QString("送出 %1 x%2").arg(dm.giftName).arg(dm.giftCount);
     emit danmakuReceived(dm);
+}
+
+void DanmakuManager::enqueueFaceFetch(qint64 uid)
+{
+    if (uid <= 0 || m_faceFetchPending.contains(uid)) return;
+    m_faceFetchPending.insert(uid);
+    m_faceFetchQueue.enqueue(uid);
+    if (!m_faceFetchTimer->isActive())
+        m_faceFetchTimer->start();
+}
+
+void DanmakuManager::processFaceQueue()
+{
+    while (!m_faceFetchQueue.isEmpty()) {
+        qint64 uid = m_faceFetchQueue.dequeue();
+        m_faceFetchPending.remove(uid);
+        QString ustr = QString::number(uid);
+        if (faceCache.contains(ustr)) continue;
+        m_api->fetchUserFace(uid);
+        return;
+    }
+    m_faceFetchTimer->stop();
 }
 
 void DanmakuManager::sendHeartbeat()

@@ -3,6 +3,8 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QImage>
+#include <QMap>
+#include <QTimer>
 #include "models/UserInfo.h"
 #include "models/LiveRoom.h"
 
@@ -37,7 +39,13 @@ signals:
     void userFaceReady(qint64 uid, const QString &url);
 
 private:
+    struct FaceRetry {
+        int retryCount = 0;
+        QTimer *timer = nullptr;
+    };
+    QMap<qint64, FaceRetry> m_faceRetries;
     void doFetchUserFace(qint64 uid, int retryCount);
+    void scheduleRetry(qint64 uid, int retryCount);
 
     QNetworkAccessManager *m_nam = nullptr;
     QString m_cookie;

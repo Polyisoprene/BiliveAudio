@@ -1,4 +1,5 @@
 #include "DanmakuBubble.h"
+#include "core/DanmakuManager.h"
 #include <QPainter>
 #include <QPainterPath>
 #include <QFontMetrics>
@@ -122,6 +123,12 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
 
     QPixmap avatar;
     bool haveAvatar = false;
+
+    if (!haveAvatar && m_dm.faceUrl.isEmpty() && !m_dm.uid.isEmpty()) {
+        QString cached = DanmakuManager::lookupFaceUrl(m_dm.uid);
+        if (!cached.isEmpty())
+            const_cast<DanmakuBubble *>(this)->m_dm.faceUrl = cached;
+    }
 
     if (s_memCache.contains(m_dm.uid) && !s_memCache[m_dm.uid].isNull()) {
         avatar = s_memCache[m_dm.uid];

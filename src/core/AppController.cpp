@@ -87,6 +87,9 @@ void AppController::setupConnections()
 
     // Danmaku
     connect(m_danmaku, &DanmakuManager::danmakuReceived, this, &AppController::danmakuReceived);
+    connect(m_api, &BilibiliApi::userFaceReady, this, [this](qint64 uid, const QString &url) {
+        DanmakuManager::faceCache[QString::number(uid)] = url;
+    });
     connect(m_danmaku, &DanmakuManager::connected, this, [this] {
         emit danmakuConnected(true);
     });
