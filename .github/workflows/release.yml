@@ -82,16 +82,13 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.ffmpeg.json
-          additionalFileNames: |
-            vcpkg-configuration.json
-            vcpkg-overlay/ports/ffmpeg/portfile.cmake
-            vcpkg-overlay/ports/ffmpeg/vcpkg.json
+          runVcpkgInstall: true
 
       - name: Upload ffmpeg libs
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-libs
-          path: vcpkg_installed/x64-windows/
+          path: vcpkg_installed/
           retention-days: 1
 
   windows:
@@ -113,6 +110,7 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json
+          runVcpkgInstall: true
 
       - name: Install Qt6
         uses: jurplel/install-qt-action@v4
@@ -126,13 +124,16 @@ jobs:
 
       - name: Merge ffmpeg into vcpkg_installed
         run: |
-          $target = "vcpkg_installed\x64-windows"
+          $tripletDir = Get-ChildItem -Path "ffmpeg_artifacts" -Directory | Select-Object -First 1
+          if (-not $tripletDir) { throw "No triplet dir found in ffmpeg_artifacts" }
+          $src = $tripletDir.FullName
+          $target = "vcpkg_installed\$($tripletDir.Name)"
           if (-not (Test-Path $target)) { New-Item -ItemType Directory -Force -Path $target | Out-Null }
-          Copy-Item -Recurse -Force "ffmpeg_artifacts\include" "$target\"
-          Copy-Item -Recurse -Force "ffmpeg_artifacts\lib" "$target\"
-          Copy-Item -Recurse -Force "ffmpeg_artifacts\bin" "$target\"
-          Copy-Item -Recurse -Force "ffmpeg_artifacts\share" "$target\"
-          Write-Host "ffmpeg merged into vcpkg_installed"
+          Copy-Item -Recurse -Force "$src\include" "$target\" -ErrorAction SilentlyContinue
+          Copy-Item -Recurse -Force "$src\lib" "$target\" -ErrorAction SilentlyContinue
+          Copy-Item -Recurse -Force "$src\bin" "$target\" -ErrorAction SilentlyContinue
+          Copy-Item -Recurse -Force "$src\share" "$target\" -ErrorAction SilentlyContinue
+          Write-Host "ffmpeg merged into $target"
 
       - name: Build
         run: |
