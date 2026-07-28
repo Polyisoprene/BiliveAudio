@@ -41,6 +41,7 @@ set(SOURCES
     src/core/LiveMonitor.cpp
     src/core/StreamPlayer.cpp
     src/core/DanmakuManager.cpp
+    src/core/AppController.cpp
     src/ui/MainWindow.cpp
     src/ui/LoginDialog.cpp
     src/ui/LiveListWidget.cpp
@@ -59,6 +60,7 @@ set(HEADERS
     src/core/LiveMonitor.h
     src/core/StreamPlayer.h
     src/core/DanmakuManager.h
+    src/core/AppController.h
     src/ui/MainWindow.h
     src/ui/LoginDialog.h
     src/ui/LiveListWidget.h

@@ -1,7 +1,4 @@
 #include "DanmakuBubble.h"
-#include "utils/Settings.h"
-#include "utils/Logger.h"
-#include "core/DanmakuManager.h"
 #include <QPainter>
 #include <QPainterPath>
 #include <QFontMetrics>
@@ -15,11 +12,11 @@
 #include <QCryptographicHash>
 #include <QFile>
 #include <QPointer>
+#include <QStandardPaths>
 
-// ── LRU memory cache ──
 static const int kMaxCached = 64;
-static QMap<QString, QPixmap> s_memCache;  // uid → pixmap
-static QStringList s_cacheOrder;            // LRU order
+static QMap<QString, QPixmap> s_memCache;
+static QStringList s_cacheOrder;
 
 static void touchCache(const QString &uid)
 {
@@ -31,29 +28,28 @@ static void touchCache(const QString &uid)
     }
 }
 
-// ── Disk cache ──
-QString DanmakuBubble::cacheDir()
+static QString cacheDir()
 {
-    QString dir = Settings::instance().avatarCacheDir();
+    QString dir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/cache/avatars";
     QDir().mkpath(dir);
     return dir;
 }
 
-QString DanmakuBubble::avatarPath(const QString &uid, const QString &faceUrl)
+static QString avatarPath(const QString &uid, const QString &faceUrl)
 {
     QString key = QCryptographicHash::hash(
         (uid + "|" + faceUrl).toUtf8(), QCryptographicHash::Md5).toHex();
     return cacheDir() + "/" + key + ".png";
 }
 
-QPixmap DanmakuBubble::loadFromDisk(const QString &path)
+static QPixmap loadFromDisk(const QString &path)
 {
     QPixmap p;
     p.load(path);
     return p;
 }
 
-void DanmakuBubble::saveToDisk(const QString &path, const QPixmap &pix)
+static void saveToDisk(const QString &path, const QPixmap &pix)
 {
     pix.save(path, "PNG");
 }
@@ -61,8 +57,6 @@ void DanmakuBubble::saveToDisk(const QString &path, const QPixmap &pix)
 DanmakuBubble::DanmakuBubble(const Danmaku &dm, QWidget *parent)
     : QWidget(parent), m_dm(dm)
 {
-    m_avatarKey = QString("a://%1").arg(dm.uid);
-
     if (dm.medalLevel > 0 && !dm.medalName.isEmpty())
         m_medalText = QString("%1 %2").arg(dm.medalName).arg(dm.medalLevel);
 
@@ -126,7 +120,6 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
 
     int ax = margin + 8, ay = 10, as = m_avatarSize;
 
-    // ── Avatar: mem cache → disk cache → download ──
     QPixmap avatar;
     bool haveAvatar = false;
 
@@ -134,18 +127,6 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
         avatar = s_memCache[m_dm.uid];
         haveAvatar = true;
         touchCache(m_dm.uid);
-        LOG_DEBUG("DanmakuBubble uid={} avatar from mem cache", m_dm.uid.toStdString());
-    }
-
-    // Fallback: if faceUrl empty, check static cache
-    if (!haveAvatar && m_dm.faceUrl.isEmpty() && !m_dm.uid.isEmpty()) {
-        QString cached = DanmakuManager::lookupFaceUrl(m_dm.uid);
-        if (!cached.isEmpty()) {
-            const_cast<DanmakuBubble *>(this)->m_dm.faceUrl = cached;
-            LOG_DEBUG("DanmakuBubble uid={} faceUrl from static cache: {}", m_dm.uid.toStdString(), cached.toStdString());
-        } else {
-            LOG_DEBUG("DanmakuBubble uid={} no faceUrl in WS data or static cache", m_dm.uid.toStdString());
-        }
     }
 
     if (!haveAvatar && !m_dm.faceUrl.isEmpty()) {
@@ -155,14 +136,10 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
             s_memCache[m_dm.uid] = avatar;
             touchCache(m_dm.uid);
             haveAvatar = true;
-            LOG_DEBUG("DanmakuBubble uid={} avatar from disk cache", m_dm.uid.toStdString());
-        } else {
-            LOG_DEBUG("DanmakuBubble uid={} disk cache miss, downloading: {}", m_dm.uid.toStdString(), m_dm.faceUrl.toStdString());
         }
     }
 
     if (!haveAvatar && !m_dm.faceUrl.isEmpty() && !s_memCache.contains(m_dm.uid)) {
-        // Mark as loading to avoid duplicate requests
         s_memCache[m_dm.uid] = QPixmap(1, 1);
         touchCache(m_dm.uid);
 
@@ -170,18 +147,12 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
         QNetworkRequest req{QUrl(m_dm.faceUrl)};
         req.setRawHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
         req.setRawHeader("Referer", "https://live.bilibili.com/");
-        QString cookie = Settings::instance().cookie();
-        if (!cookie.isEmpty())
-            req.setRawHeader("Cookie", cookie.toUtf8());
         auto *reply = nam->get(req);
         QPointer<DanmakuBubble> self(this);
-        connect(reply, &QNetworkReply::finished, this, [reply, nam, uid = m_dm.uid, origUrl = m_dm.faceUrl, cookie, self]() {
+        connect(reply, &QNetworkReply::finished, this, [reply, nam, uid = m_dm.uid, origUrl = m_dm.faceUrl, self]() {
             reply->deleteLater();
             nam->deleteLater();
-            if (reply->error() != QNetworkReply::NoError) {
-                LOG_DEBUG("DanmakuBubble uid={} avatar download failed: {}", uid.toStdString(), reply->errorString().toStdString());
-                return;
-            }
+            if (reply->error() != QNetworkReply::NoError) return;
             QByteArray data = reply->readAll();
 
             QPixmap av;
@@ -195,15 +166,12 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
             }
 
             if (av.isNull() && origUrl.endsWith(".webp", Qt::CaseInsensitive)) {
-                // WebP decode failed, try .jpg fallback
                 QString jpgUrl = origUrl;
                 jpgUrl.replace(jpgUrl.lastIndexOf('.'), 5, ".jpg");
                 auto *nam2 = new QNetworkAccessManager(self ? self->parent() : nullptr);
                 QNetworkRequest req2{QUrl(jpgUrl)};
                 req2.setRawHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36");
                 req2.setRawHeader("Referer", "https://live.bilibili.com/");
-                if (!cookie.isEmpty())
-                    req2.setRawHeader("Cookie", cookie.toUtf8());
                 auto *reply2 = nam2->get(req2);
                 connect(reply2, &QNetworkReply::finished, self.data(), [reply2, nam2, uid, self]() {
                     reply2->deleteLater();
@@ -221,11 +189,7 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
                 return;
             }
 
-            if (av.isNull()) {
-                LOG_DEBUG("DanmakuBubble uid={} avatar decode failed ({} bytes)", uid.toStdString(), data.size());
-                return;
-            }
-            LOG_DEBUG("DanmakuBubble uid={} avatar downloaded ({}x{})", uid.toStdString(), av.width(), av.height());
+            if (av.isNull()) return;
             s_memCache[uid] = av;
             touchCache(uid);
             saveToDisk(avatarPath(uid, reply->url().toString()), av);
@@ -246,7 +210,6 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
         p.drawEllipse(ax, ay, as, as);
     }
 
-    // ── Text layout ──
     int tx = ax + as + 8, ty = ay, origTx = ax;
 
     if (!m_medalText.isEmpty()) {

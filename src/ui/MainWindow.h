@@ -12,11 +12,7 @@ class LiveListWidget;
 class PlayerControl;
 class DanmakuPanel;
 class DanmakuWindow;
-class BilibiliApi;
-class AuthManager;
-class LiveMonitor;
-class StreamPlayer;
-class DanmakuManager;
+class AppController;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -30,18 +26,10 @@ protected:
 private:
     void setupUI();
     void setupConnections();
-    void setupDanmakuWindow();
     void applyStyleSheet();
-    void restoreSession();
-    void onLoginSuccess(const QString &cookie, const QString &username);
-    void onLogout();
+    void appendLog(const QString &msg);
 
-    // Core (Qt parent-child = RAII)
-    BilibiliApi *m_api = nullptr;
-    AuthManager *m_auth = nullptr;
-    LiveMonitor *m_monitor = nullptr;
-    StreamPlayer *m_player = nullptr;
-    DanmakuManager *m_danmaku = nullptr;
+    AppController *m_ctrl = nullptr;
 
     // UI (Qt parent-child = RAII)
     TrayManager *m_tray = nullptr;
@@ -54,9 +42,6 @@ private:
     LiveListWidget *m_liveList = nullptr;
     PlayerControl *m_playerControl = nullptr;
     DanmakuPanel *m_danmakuPanel = nullptr;
-    QTextEdit *m_logView = nullptr;
     DanmakuWindow *m_danmakuWindow = nullptr;
-    bool m_openingRoom = false;
-
-    void appendLog(const QString &msg);
+    QTextEdit *m_logView = nullptr;
 };
