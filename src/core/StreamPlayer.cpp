@@ -396,12 +396,6 @@ void StreamPlayer::decodeLoop()
                         m_buf[(wp + i) & kBufMask] = samples[i];
                     m_wp.store((wp + count) & kBufMask, std::memory_order_release);
                     totalWritten += count;
-                    // Keep latency under 2 seconds: jump to live if buffer too deep
-                    int occ = (m_wp.load(std::memory_order_acquire) - m_rp.load(std::memory_order_relaxed)) & kBufMask;
-                    if (occ > 176400) {
-                        m_wp.store(m_rp.load(std::memory_order_relaxed), std::memory_order_release);
-                        emit logMessage("延迟 >2s，跳到直播实时");
-                    }
                 } else if (!dropLogged++) {
                     emit logMessage("警告: ring buffer 满, 丢弃音频数据");
                 }
