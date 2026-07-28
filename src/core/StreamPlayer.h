@@ -1,25 +1,8 @@
 #pragma once
 #include <QObject>
 #include <QThread>
-#include <memory>
-#include <cstdint>
-#include <atomic>
-
-extern "C" {
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
-#include <libswresample/swresample.h>
-}
-
-struct AvFmtDeleter {
-    void operator()(AVFormatContext *p) const { if (p) avformat_close_input(&p); }
-};
-struct AvCodecDeleter {
-    void operator()(AVCodecContext *p) const { if (p) avcodec_free_context(&p); }
-};
-struct SwrDeleter {
-    void operator()(SwrContext *p) const { if (p) swr_free(&p); }
-};
+#include <QAtomicInt>
+#include <mpv/client.h>
 
 class StreamPlayer : public QObject {
     Q_OBJECT
@@ -32,7 +15,7 @@ public:
     void pause();
     void resume();
     void setVolume(int percent);
-    int volume() const;
+    int volume() const { return m_volume; }
     bool isPlaying() const { return m_playing; }
 
 signals:
@@ -42,24 +25,12 @@ signals:
     void logMessage(const QString &msg);
 
 private:
-    void decodeLoop();
-    void wasapiPullLoop();
+    void initMpv();
+    void handleEvent(mpv_event *event);
 
-    QThread *m_thread = nullptr;
-    QThread *m_audioThread = nullptr;
+    mpv_handle *m_mpv = nullptr;
+    QThread *m_eventThread = nullptr;
     std::atomic<bool> m_running{false};
-    std::atomic<bool> m_paused{false};
-    std::atomic<int> m_playGeneration{0};
-
-    QString m_streamUrl;
-
-    static constexpr int kBufBits = 19;
-    static constexpr int kBufMask = (1 << kBufBits) - 1;
-    static constexpr int kBufSize = 1 << kBufBits;
-    int16_t m_buf[kBufSize];
-    std::atomic<int> m_wp{0};
-    std::atomic<int> m_rp{0};
-
     std::atomic<int> m_volume{80};
     bool m_playing = false;
 };

@@ -15,23 +15,13 @@ if(WIN32)
     find_path(QRENCODE_INCLUDE_DIR NAMES qrencode.h REQUIRED)
     find_library(QRENCODE_LIBRARY_RELEASE qrencode REQUIRED)
     find_library(QRENCODE_LIBRARY_DEBUG qrencoded)
-    find_path(AVCODEC_INCLUDE_DIR libavcodec/avcodec.h REQUIRED)
-    find_library(AVCODEC_LIBRARY avcodec REQUIRED)
-    find_path(AVFORMAT_INCLUDE_DIR libavformat/avformat.h REQUIRED)
-    find_library(AVFORMAT_LIBRARY avformat REQUIRED)
-    find_path(AVUTIL_INCLUDE_DIR libavutil/avutil.h REQUIRED)
-    find_library(AVUTIL_LIBRARY avutil REQUIRED)
-    find_path(SWRESAMPLE_INCLUDE_DIR libswresample/swresample.h REQUIRED)
-    find_library(SWRESAMPLE_LIBRARY swresample REQUIRED)
+    find_path(MPV_INCLUDE_DIR NAMES mpv/client.h REQUIRED)
+    find_library(MPV_LIBRARY_RELEASE mpv REQUIRED)
 else()
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(AVCODEC REQUIRED IMPORTED_TARGET libavcodec)
-    pkg_check_modules(AVFORMAT REQUIRED IMPORTED_TARGET libavformat)
-    pkg_check_modules(AVUTIL REQUIRED IMPORTED_TARGET libavutil)
-    pkg_check_modules(SWRESAMPLE REQUIRED IMPORTED_TARGET libswresample)
     pkg_check_modules(BROTLIDEC REQUIRED IMPORTED_TARGET libbrotlidec)
     pkg_check_modules(QRENCODE REQUIRED IMPORTED_TARGET libqrencode)
-    pkg_check_modules(ALSA REQUIRED IMPORTED_TARGET alsa)
+    pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
 endif()
 
 set(SOURCES
@@ -83,13 +73,12 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${RESOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 if(WIN32)
-    target_include_directories(${PROJECT_NAME} PRIVATE ${QRENCODE_INCLUDE_DIR}
-        ${AVCODEC_INCLUDE_DIR} ${AVFORMAT_INCLUDE_DIR} ${AVUTIL_INCLUDE_DIR} ${SWRESAMPLE_INCLUDE_DIR})
+    target_include_directories(${PROJECT_NAME} PRIVATE ${QRENCODE_INCLUDE_DIR} ${MPV_INCLUDE_DIR})
     target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets
         spdlog::spdlog
         unofficial::brotli::brotlidec
-        ${AVCODEC_LIBRARY} ${AVFORMAT_LIBRARY} ${AVUTIL_LIBRARY} ${SWRESAMPLE_LIBRARY}
+        ${MPV_LIBRARY_RELEASE}
         optimized ${QRENCODE_LIBRARY_RELEASE}
         debug ${QRENCODE_LIBRARY_DEBUG}
     )
@@ -98,11 +87,7 @@ else()
     target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets
         spdlog::spdlog
-        PkgConfig::AVCODEC
-        PkgConfig::AVFORMAT
-        PkgConfig::AVUTIL
-        PkgConfig::SWRESAMPLE
-        PkgConfig::ALSA
+        PkgConfig::MPV
         PkgConfig::BROTLIDEC
         PkgConfig::QRENCODE
     )
