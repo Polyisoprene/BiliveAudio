@@ -25,10 +25,20 @@ static const int OPERATION_AUTH_REPLY = 8;
 static const int OPERATION_MESSAGE = 5;
 
 QMap<QString, QString> DanmakuManager::faceCache;
+QStringList DanmakuManager::faceCacheOrder;
 
 QString DanmakuManager::lookupFaceUrl(const QString &uid)
 {
     return faceCache.value(uid);
+}
+
+void DanmakuManager::addToFaceCache(const QString &uid, const QString &url)
+{
+    faceCacheOrder.removeAll(uid);
+    faceCacheOrder.append(uid);
+    faceCache[uid] = url;
+    while (faceCacheOrder.size() > kFaceCacheMax)
+        faceCache.remove(faceCacheOrder.takeFirst());
 }
 
 DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
@@ -48,8 +58,8 @@ DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
 
     connect(m_reconnectTimer, &QTimer::timeout, this, &DanmakuManager::tryReconnect);
     connect(m_api, &BilibiliApi::danmuInfoReady, this, &DanmakuManager::onDanmuInfoReady);
-    connect(m_api, &BilibiliApi::userFaceReady, this, [this](qint64 uid, const QString &url) {
-        faceCache[QString::number(uid)] = url;
+    connect(m_api, &BilibiliApi::userFaceReady, this, [](qint64 uid, const QString &url) {
+        addToFaceCache(QString::number(uid), url);
     });
 }
 

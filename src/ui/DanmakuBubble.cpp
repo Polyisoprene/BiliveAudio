@@ -50,6 +50,15 @@ static QPixmap loadFromDisk(const QString &path)
     return p;
 }
 
+static constexpr int kCachePixmapSize = 48;
+
+static QPixmap scaledForCache(const QPixmap &src)
+{
+    if (src.isNull()) return src;
+    return src.scaled(kCachePixmapSize, kCachePixmapSize,
+                      Qt::KeepAspectRatio, Qt::SmoothTransformation);
+}
+
 static void saveToDisk(const QString &path, const QPixmap &pix)
 {
     pix.save(path, "PNG");
@@ -140,7 +149,7 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
         QString path = avatarPath(m_dm.uid, m_dm.faceUrl);
         avatar = loadFromDisk(path);
         if (!avatar.isNull()) {
-            s_memCache[m_dm.uid] = avatar;
+            s_memCache[m_dm.uid] = scaledForCache(avatar);
             touchCache(m_dm.uid);
             haveAvatar = true;
         }
@@ -187,6 +196,7 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
                     QPixmap av2;
                     av2.loadFromData(reply2->readAll());
                     if (av2.isNull()) return;
+                    av2 = scaledForCache(av2);
                     s_memCache[uid] = av2;
                     touchCache(uid);
                     saveToDisk(avatarPath(uid, reply2->url().toString()), av2);
@@ -197,6 +207,7 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
             }
 
             if (av.isNull()) return;
+            av = scaledForCache(av);
             s_memCache[uid] = av;
             touchCache(uid);
             saveToDisk(avatarPath(uid, reply->url().toString()), av);

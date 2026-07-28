@@ -14,8 +14,11 @@ public:
     explicit DanmakuManager(BilibiliApi *api, QObject *parent = nullptr);
     ~DanmakuManager() override;
 
+    static constexpr int kFaceCacheMax = 2000;
     static QMap<QString, QString> faceCache;
+    static QStringList faceCacheOrder;
     static QString lookupFaceUrl(const QString &uid);
+    static void addToFaceCache(const QString &uid, const QString &url);
 
     void connectRoom(qint64 roomId);
     void disconnectRoom();

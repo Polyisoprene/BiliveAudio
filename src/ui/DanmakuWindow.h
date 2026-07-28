@@ -44,7 +44,7 @@ private:
     bool m_programmaticScroll = false;
     bool m_scrollLocked = false;
     QPoint m_dragPos;
-    int m_maxLines = 200;
+    int m_maxLines = 150;
 
     QColor contrastColor(const QColor &bg) const;
 };

@@ -34,5 +34,5 @@ private:
     QQueue<Danmaku> m_buffer;
     bool m_programmaticScroll = false;
     bool m_scrollLocked = false;
-    int m_maxLines = 200;
+    int m_maxLines = 100;
 };
