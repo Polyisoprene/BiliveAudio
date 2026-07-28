@@ -81,16 +81,17 @@ void DanmakuPanel::insertDanmaku(const Danmaku &dm)
     m_programmaticScroll = true;
     auto *scroll = m_list->verticalScrollBar();
 
+    while (m_list->count() >= m_maxLines)
+        delete m_list->takeItem(0);
+
     auto *item = new QListWidgetItem(m_list);
     auto *bubble = new DanmakuBubble(dm);
     item->setSizeHint(bubble->sizeHint());
     m_list->setItemWidget(item, bubble);
 
-    while (m_list->count() > m_maxLines)
-        delete m_list->takeItem(0);
-
     if (m_scrollAnim) {
         m_scrollAnim->setEndValue(scroll->maximum());
+        m_programmaticScroll = false;
         return;
     }
     m_scrollAnim = new QPropertyAnimation(scroll, "value", this);
@@ -99,11 +100,11 @@ void DanmakuPanel::insertDanmaku(const Danmaku &dm)
     m_scrollAnim->setStartValue(scroll->value());
     m_scrollAnim->setEndValue(scroll->maximum());
     connect(m_scrollAnim, &QPropertyAnimation::finished, this, [this, scroll]() {
+        m_scrollAnim->deleteLater();
+        m_scrollAnim = nullptr;
         m_programmaticScroll = true;
         scroll->setValue(scroll->maximum());
         m_programmaticScroll = false;
-        m_scrollAnim->deleteLater();
-        m_scrollAnim = nullptr;
     });
     m_scrollAnim->start();
 }
