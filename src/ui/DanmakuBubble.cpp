@@ -127,14 +127,6 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
     QPixmap avatar;
     bool haveAvatar = false;
 
-    static int avatarDebounce = 0;
-    if (++avatarDebounce % 30 == 1)
-        fprintf(stderr, "AVATAR uid=%s uname=%s faceUrl=[%s] mem=%d disk=%d\n",
-                qPrintable(m_dm.uid), qPrintable(m_dm.username),
-                qPrintable(m_dm.faceUrl),
-                s_memCache.contains(m_dm.uid) ? (s_memCache[m_dm.uid].isNull() ? 0 : 1) : -1,
-                m_dm.faceUrl.isEmpty() ? -1 : (int)QFile::exists(avatarPath(m_dm.uid, m_dm.faceUrl)));
-
     if (s_memCache.contains(m_dm.uid) && !s_memCache[m_dm.uid].isNull()) {
         avatar = s_memCache[m_dm.uid];
         haveAvatar = true;
@@ -172,12 +164,7 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
         connect(reply, &QNetworkReply::finished, this, [reply, nam, uid = m_dm.uid, self]() {
             reply->deleteLater();
             nam->deleteLater();
-            if (reply->error() != QNetworkReply::NoError) {
-                fprintf(stderr, "AVATAR 下载失败 uid=%s err=%d url=%s\n",
-                        qPrintable(uid), reply->error(),
-                        qPrintable(reply->url().toString()));
-                return;
-            }
+            if (reply->error() != QNetworkReply::NoError) return;
             QPixmap av;
             av.loadFromData(reply->readAll());
             if (av.isNull()) return;
