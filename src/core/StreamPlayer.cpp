@@ -2,14 +2,10 @@
 #include "utils/Logger.h"
 #include <QAudioFormat>
 #include <QMediaDevices>
-#include <algorithm>
 
 StreamPlayer::StreamPlayer(QObject *parent)
     : QObject(parent)
 {
-    m_feedTimer = new QTimer(this);
-    m_feedTimer->setInterval(40);
-    connect(m_feedTimer, &QTimer::timeout, this, &StreamPlayer::feedAudio);
 }
 
 StreamPlayer::~StreamPlayer()
@@ -34,7 +30,6 @@ void StreamPlayer::stop()
 {
     m_running = false;
     m_paused = false;
-    m_feedTimer->stop();
 
     if (m_audioSink) {
         m_audioSink->stop();
@@ -60,9 +55,8 @@ void StreamPlayer::stop()
         avformat_close_input(&m_fmtCtx);
     }
 
-    m_wp = 0;
-    m_rp = 0;
-    m_audioReady = false;
+    m_wp.store(0);
+    m_rp.store(0);
     m_playing = false;
     emit stopped("stopped");
 }
@@ -77,7 +71,7 @@ void StreamPlayer::pause()
 void StreamPlayer::resume()
 {
     m_paused = false;
-    m_wp.store(m_rp.load());  // flush buffer
+    m_wp.store(m_rp.load());  // flush buffer, jump to live
     if (m_audioSink)
         m_audioSink->resume();
     emit logMessage("跳到直播实时位置");
@@ -85,10 +79,13 @@ void StreamPlayer::resume()
 
 void StreamPlayer::setVolume(int percent)
 {
-    m_volume = qBound(0, percent, 100);
+    m_volumeF = qBound(0, percent, 100) / 100.0f;
 }
 
-int StreamPlayer::volume() const { return m_volume; }
+int StreamPlayer::volume() const
+{
+    return static_cast<int>(m_volumeF * 100);
+}
 
 void StreamPlayer::decodeLoop()
 {
@@ -141,7 +138,7 @@ void StreamPlayer::decodeLoop()
         return;
     }
 
-    // Set up resampler → 44100 s16 stereo
+    // Resampler → 44100 s16 stereo
     AVChannelLayout outLayout = AV_CHANNEL_LAYOUT_STEREO;
     AVChannelLayout inLayout = m_codecCtx->ch_layout;
     swr_alloc_set_opts2(&m_swrCtx,
@@ -154,8 +151,7 @@ void StreamPlayer::decodeLoop()
         return;
     }
 
-    // Start audio output on main thread
-    m_audioReady = false;
+    // Create audio sink + device on main thread
     QMetaObject::invokeMethod(this, [this] {
         QAudioFormat fmt;
         fmt.setSampleRate(44100);
@@ -165,31 +161,21 @@ void StreamPlayer::decodeLoop()
         emit logMessage(QString("音频设备: %1").arg(dev.description()));
         if (dev.isNull()) {
             emit logMessage("错误: 无可用音频输出设备");
-            m_audioReady = true;
             return;
         }
+        m_audioDevice = new AudioDevice(m_buf, kBufMask, m_wp, m_rp, &m_volumeF);
+        m_audioDevice->open(QIODevice::ReadOnly);
         m_audioSink = new QAudioSink(dev, fmt);
-        m_audioSink->setVolume(m_volume / 100.0);
-        m_audioDevice = m_audioSink->start();
-        if (!m_audioDevice) {
-            emit logMessage("错误: QAudioSink::start() 返回空");
-            m_audioReady = true;
-            return;
-        }
+        m_audioSink->start(m_audioDevice);
         emit logMessage("音频输出就绪");
-        m_audioReady = true;
-        m_feedTimer->start();
-    }, Qt::QueuedConnection);
-
-    while (!m_audioReady && m_running)
-        QThread::msleep(5);
-    if (!m_running) return;
+    }, Qt::BlockingQueuedConnection);
 
     emit logMessage(QString("解码器就绪: %1").arg(codec->name));
 
-    // Decode loop
+    // Decode loop — writes into ring buffer, AudioDevice reads from it
     AVPacket *pkt = av_packet_alloc();
     AVFrame *frame = av_frame_alloc();
+    int frameCount = 0;
 
     while (m_running) {
         if (m_paused) {
@@ -220,26 +206,26 @@ void StreamPlayer::decodeLoop()
             if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) break;
             if (ret < 0) break;
 
-            // Convert to s16 stereo
             uint8_t *out[2] = { nullptr, nullptr };
             int outSamples = swr_get_out_samples(m_swrCtx, frame->nb_samples);
             av_samples_alloc(out, nullptr, 2, outSamples, AV_SAMPLE_FMT_S16, 0);
             int converted = swr_convert(m_swrCtx, out, outSamples,
                                         (const uint8_t **)frame->data, frame->nb_samples);
             if (converted > 0) {
-                int16_t *samples = reinterpret_cast<int16_t *>(out[0]);
+                auto *samples = reinterpret_cast<int16_t *>(out[0]);
                 int count = converted * 2;
                 int wp = m_wp.load(std::memory_order_relaxed);
                 int rp = m_rp.load(std::memory_order_acquire);
                 int space = kBufSize - ((wp - rp) & kBufMask);
 
                 if (space >= count) {
-                    for (int i = 0; i < count; i++) {
+                    for (int i = 0; i < count; i++)
                         m_buf[(wp + i) & kBufMask] = samples[i];
-                    }
                     m_wp.store((wp + count) & kBufMask, std::memory_order_release);
+                    if ((++frameCount % 100) == 0)
+                        emit logMessage(QString("解码中... %1 samples, buf=%2/%3")
+                            .arg(count).arg((m_wp.load() - m_rp.load()) & kBufMask).arg(kBufSize));
                 }
-                // else: buffer full, drop packet (live streaming)
             }
             av_freep(&out[0]);
             av_frame_unref(frame);
@@ -250,27 +236,38 @@ void StreamPlayer::decodeLoop()
     av_packet_free(&pkt);
     avformat_close_input(&m_fmtCtx);
     m_running = false;
+
+    // Stop audio after decode finishes
+    QMetaObject::invokeMethod(this, [this] {
+        if (m_audioSink) {
+            m_audioSink->stop();
+            delete m_audioSink;
+            m_audioSink = nullptr;
+            m_audioDevice = nullptr;
+        }
+    }, Qt::BlockingQueuedConnection);
+
     emit stopped("eof");
 }
 
-void StreamPlayer::feedAudio()
+// Called by QAudioSink when it needs PCM data (push model)
+qint64 StreamPlayer::AudioDevice::readData(char *data, qint64 maxLen)
 {
-    if (!m_audioDevice || m_paused) return;
+    if (maxLen < 64) return 0;
 
     int wp = m_wp.load(std::memory_order_acquire);
     int rp = m_rp.load(std::memory_order_relaxed);
-    int avail = (wp - rp) & kBufMask;
-    if (avail < 2048) return;  // wait for ~23ms of audio
+    int avail = (wp - rp) & m_mask;
+    int wanted = static_cast<int>(maxLen / sizeof(int16_t));
+    int toRead = std::min(avail, wanted);
 
-    int toRead = std::min(avail, 3528);   // 40ms worth at 44100 s16 stereo
-    float vol = m_volume / 100.0f;
+    if (toRead <= 0) return 0;
 
-    alignas(16) int16_t tmp[4096];
-    for (int i = 0; i < toRead; i++) {
-        int16_t s = m_buf[(rp + i) & kBufMask];
-        tmp[i] = static_cast<int16_t>(s * vol);
-    }
+    float vol = *m_vol;
+    auto *dst = reinterpret_cast<int16_t *>(data);
+    for (int i = 0; i < toRead; i++)
+        dst[i] = static_cast<int16_t>(m_buf[(rp + i) & m_mask] * vol);
 
-    m_rp.store((rp + toRead) & kBufMask, std::memory_order_release);
-    m_audioDevice->write(reinterpret_cast<const char *>(tmp), toRead * sizeof(int16_t));
+    m_rp.store((rp + toRead) & m_mask, std::memory_order_release);
+    return toRead * sizeof(int16_t);
 }
