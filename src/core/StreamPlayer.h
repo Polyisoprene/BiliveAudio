@@ -13,6 +13,9 @@ extern "C" {
 #endif
 }
 
+struct IAudioClient;
+struct IAudioRenderClient;
+
 class StreamPlayer : public QObject {
     Q_OBJECT
 public:
@@ -36,6 +39,7 @@ signals:
 private:
     void decodeLoop();
     void drainToAlsa();
+    void wasapiPullLoop();
 
     QThread *m_thread = nullptr;
     std::atomic<bool> m_running{false};
@@ -49,6 +53,12 @@ private:
 
 #ifdef __linux__
     snd_pcm_t *m_pcm = nullptr;
+#endif
+#ifdef _WIN32
+    IAudioClient *m_audioClient = nullptr;
+    IAudioRenderClient *m_renderClient = nullptr;
+    QThread *m_audioThread = nullptr;
+    void *m_audioEvent = nullptr;  // HANDLE
 #endif
 
     static constexpr int kBufBits = 19;
