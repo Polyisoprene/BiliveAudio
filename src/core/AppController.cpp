@@ -8,6 +8,8 @@
 #include "utils/Settings.h"
 
 #include <QApplication>
+#include <QTimer>
+#include <malloc.h>
 
 AppController *AppController::s_instance = nullptr;
 
@@ -23,6 +25,14 @@ AppController::AppController(QObject *parent)
     m_danmaku = new DanmakuManager(m_api, this);
 
     setupConnections();
+
+    // Periodic heap defragmentation to prevent memory bloat from glibc fragmentation
+    auto *heapTimer = new QTimer(this);
+    heapTimer->setInterval(60000);
+    connect(heapTimer, &QTimer::timeout, this, []() {
+        malloc_trim(0);
+    });
+    heapTimer->start();
 
     LOG_INFO("AppController created");
 }
