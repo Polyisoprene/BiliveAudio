@@ -6,8 +6,9 @@ set(CMAKE_AUTOMOC ON)
 find_package(GTest REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(spdlog REQUIRED)
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Test)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebSockets Test)
 pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
+pkg_check_modules(BROTLIDEC REQUIRED IMPORTED_TARGET libbrotlidec)
 
 enable_testing()
 
@@ -23,9 +24,11 @@ set(TEST_COMMON_LIBS
     Qt6::Gui
     Qt6::Widgets
     Qt6::Network
+    Qt6::WebSockets
     Qt6::Test
     spdlog::spdlog
     PkgConfig::MPV
+    PkgConfig::BROTLIDEC
 )
 
 # ── test_danmaku (no MOC needed) ──
@@ -52,6 +55,20 @@ target_include_directories(test_bilibiliapi PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(test_bilibiliapi PRIVATE ${TEST_COMMON_LIBS})
 add_test(NAME test_bilibiliapi COMMAND test_bilibiliapi)
 set_tests_properties(test_bilibiliapi PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# ── test_memory (leak detection, container bounds) ──
+add_executable(test_memory test_memory.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/DanmakuManager.h
+    ${CMAKE_SOURCE_DIR}/src/core/DanmakuManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/BilibiliApi.h
+    ${CMAKE_SOURCE_DIR}/src/core/BilibiliApi.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/StreamPlayer.h
+    ${CMAKE_SOURCE_DIR}/src/core/StreamPlayer.cpp
+)
+target_include_directories(test_memory PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_memory PRIVATE ${TEST_COMMON_LIBS} PkgConfig::MPV)
+add_test(NAME test_memory COMMAND test_memory)
+set_tests_properties(test_memory PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 # ── test_streamplayer (needs MOC) ──
 add_executable(test_streamplayer test_streamplayer.cpp
