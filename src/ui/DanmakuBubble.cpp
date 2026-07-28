@@ -2,6 +2,7 @@
 #include "core/DanmakuManager.h"
 #include "utils/Settings.h"
 #include <QPainter>
+#include <QDateTime>
 #include <QPainterPath>
 #include <QFontMetrics>
 #include <QNetworkAccessManager>
@@ -94,6 +95,17 @@ DanmakuBubble::~DanmakuBubble() = default;
 static QNetworkAccessManager *s_avatarNam()
 {
     static auto *nam = new QNetworkAccessManager;
+    static qint64 created = QDateTime::currentSecsSinceEpoch();
+    qint64 now = QDateTime::currentSecsSinceEpoch();
+    // Recreate every 10 minutes to clear accumulated connections and internal buffers
+    if (now - created > 600) {
+        created = now;
+        auto *old = nam;
+        QTimer::singleShot(0, [old]() {
+            old->deleteLater();
+        });
+        nam = new QNetworkAccessManager;
+    }
     nam->setProxy(QNetworkProxy::NoProxy);
     return nam;
 }
@@ -107,6 +119,7 @@ void DanmakuBubble::startDownload()
     QNetworkRequest req{QUrl(m_dm.faceUrl)};
     req.setRawHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
     req.setRawHeader("Referer", "https://live.bilibili.com/");
+    req.setTransferTimeout(15000);
     auto *reply = nam->get(req);
     QPointer<DanmakuBubble> self(this);
     connect(reply, &QNetworkReply::finished, this, [reply, uid = m_dm.uid, origUrl = m_dm.faceUrl, self]() {
