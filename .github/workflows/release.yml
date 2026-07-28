@@ -78,6 +78,7 @@ jobs:
         shell: pwsh
     env:
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/../vcpkg_cache
+      VCPKG_INSTALLED_DIR: ${{ github.workspace }}/vcpkg_installed
 
     steps:
       - uses: actions/checkout@v4
