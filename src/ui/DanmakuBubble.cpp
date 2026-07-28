@@ -1,4 +1,5 @@
 #include "DanmakuBubble.h"
+#include "utils/Settings.h"
 #include <QPainter>
 #include <QPainterPath>
 #include <QFontMetrics>
@@ -7,7 +8,6 @@
 #include <QNetworkRequest>
 #include <QResizeEvent>
 #include <QDir>
-#include <QStandardPaths>
 #include <QCryptographicHash>
 #include <QFile>
 
@@ -29,12 +29,8 @@ static void touchCache(const QString &uid)
 // ── Disk cache ──
 QString DanmakuBubble::cacheDir()
 {
-    static QString dir;
-    if (dir.isEmpty()) {
-        dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
-              + "/cache/avatars";
-        QDir().mkpath(dir);
-    }
+    QString dir = Settings::instance().avatarCacheDir();
+    QDir().mkpath(dir);
     return dir;
 }
 

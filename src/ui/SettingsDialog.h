@@ -13,6 +13,7 @@ public:
 private:
     QLineEdit *m_logDirEdit = nullptr;
     QLineEdit *m_cookiePathEdit = nullptr;
+    QLineEdit *m_cacheDirEdit = nullptr;
     QCheckBox *m_imageModeCheck = nullptr;
     QSpinBox *m_retentionSpin = nullptr;
     QLabel *m_configPathLabel = nullptr;

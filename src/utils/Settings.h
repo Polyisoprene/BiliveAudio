@@ -30,6 +30,9 @@ public:
     bool danmakuImageMode() const;
     void setDanmakuImageMode(bool enabled);
 
+    QString avatarCacheDir() const;
+    void setAvatarCacheDir(const QString &dir);
+
 private:
     Settings();
     static QString configPath();

@@ -111,3 +111,14 @@ void Settings::setDanmakuImageMode(bool enabled)
 {
     m_settings.setValue("danmaku/imageMode", enabled);
 }
+
+QString Settings::avatarCacheDir() const
+{
+    QString def = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/cache/avatars";
+    return m_settings.value("cache/avatarDir", def).toString();
+}
+
+void Settings::setAvatarCacheDir(const QString &dir)
+{
+    m_settings.setValue("cache/avatarDir", dir);
+}

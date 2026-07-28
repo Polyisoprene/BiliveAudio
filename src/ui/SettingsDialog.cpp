@@ -13,7 +13,7 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     : QDialog(parent)
 {
     setWindowTitle("设置");
-    setFixedSize(450, 350);
+    setFixedSize(450, 420);
 
     auto *layout = new QVBoxLayout(this);
     layout->setSpacing(12);
@@ -56,6 +56,14 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     auto *dmLayout = new QVBoxLayout(dmGroup);
     m_imageModeCheck = new QCheckBox("图像模式（头像 + 聊天气泡）");
     dmLayout->addWidget(m_imageModeCheck);
+    auto *cacheRow = new QHBoxLayout;
+    m_cacheDirEdit = new QLineEdit;
+    auto *cacheBrowseBtn = new QPushButton("浏览...");
+    cacheBrowseBtn->setFixedWidth(60);
+    cacheRow->addWidget(new QLabel("头像缓存:"));
+    cacheRow->addWidget(m_cacheDirEdit);
+    cacheRow->addWidget(cacheBrowseBtn);
+    dmLayout->addLayout(cacheRow);
     layout->addWidget(dmGroup);
 
     // Config path info
@@ -84,6 +92,13 @@ SettingsDialog::SettingsDialog(QWidget *parent)
             m_logDirEdit->setText(dir);
     });
 
+    connect(cacheBrowseBtn, &QPushButton::clicked, this, [this] {
+        QString dir = QFileDialog::getExistingDirectory(this, "选择头像缓存目录",
+            m_cacheDirEdit->text());
+        if (!dir.isEmpty())
+            m_cacheDirEdit->setText(dir);
+    });
+
     connect(cookieBrowseBtn, &QPushButton::clicked, this, [this] {
         QString dir = QFileDialog::getExistingDirectory(this, "选择配置文件目录",
             m_cookiePathEdit->text());
@@ -108,8 +123,9 @@ void SettingsDialog::loadSettings()
     m_cookiePathEdit->setText(
         QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)
         + "/biliveaudio.conf");
+    m_cacheDirEdit->setText(s.avatarCacheDir());
     m_imageModeCheck->setChecked(s.danmakuImageMode());
-    m_configPathLabel->setText("重启应用后日志路径修改生效");
+    m_configPathLabel->setText("重启应用后日志和缓存路径修改生效");
 }
 
 void SettingsDialog::saveSettings()
@@ -117,5 +133,6 @@ void SettingsDialog::saveSettings()
     auto &s = Settings::instance();
     s.setLogDir(m_logDirEdit->text());
     s.setLogRetentionDays(m_retentionSpin->value());
+    s.setAvatarCacheDir(m_cacheDirEdit->text());
     s.setDanmakuImageMode(m_imageModeCheck->isChecked());
 }
