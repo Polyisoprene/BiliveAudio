@@ -1,6 +1,5 @@
 #include "TrayManager.h"
 #include <QIcon>
-#include <QPainter>
 #include <QApplication>
 
 TrayManager::TrayManager(QObject *parent)
@@ -33,28 +32,11 @@ TrayManager::TrayManager(QObject *parent)
 
 void TrayManager::setupIcon()
 {
-    QPixmap pixmap(64, 64);
-    pixmap.fill(Qt::transparent);
-
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-
-    QLinearGradient grad(0, 0, 64, 64);
-    grad.setColorAt(0, QColor("#533483"));
-    grad.setColorAt(1, QColor("#0f3460"));
-    painter.setBrush(grad);
-    painter.setPen(Qt::NoPen);
-    painter.drawRoundedRect(2, 2, 60, 60, 12, 12);
-
-    painter.setPen(QPen(Qt::white, 3));
-    QFont font = painter.font();
-    font.setPixelSize(28);
-    font.setBold(true);
-    painter.setFont(font);
-    painter.drawText(QRect(0, 0, 64, 64), Qt::AlignCenter, "B");
-    painter.end();
-
-    m_trayIcon->setIcon(QIcon(pixmap));
+    QIcon icon(":/icon.png");
+    if (!icon.isNull())
+        m_trayIcon->setIcon(icon);
+    else
+        m_trayIcon->setIcon(QIcon::fromTheme("multimedia-player"));
 }
 
 void TrayManager::showNotification(const QString &title, const QString &msg)
