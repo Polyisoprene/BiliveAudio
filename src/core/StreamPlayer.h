@@ -40,6 +40,7 @@ private:
     QThread *m_thread = nullptr;
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_paused{false};
+    std::atomic<bool> m_audioReady{false};
 
     AVFormatContext *m_fmtCtx = nullptr;
     AVCodecContext *m_codecCtx = nullptr;

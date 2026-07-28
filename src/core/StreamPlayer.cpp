@@ -61,6 +61,7 @@ void StreamPlayer::stop()
     }
 
     m_bufLevel = 0;
+    m_audioReady = false;
     m_playing = false;
     emit stopped("stopped");
 }
@@ -155,7 +156,8 @@ void StreamPlayer::decodeLoop()
         return;
     }
 
-    // Start audio output on main thread
+    // Start audio output on main thread (non-blocking)
+    m_audioReady = false;
     QMetaObject::invokeMethod(this, [this] {
         QAudioFormat fmt;
         fmt.setSampleRate(44100);
@@ -165,6 +167,7 @@ void StreamPlayer::decodeLoop()
         emit logMessage(QString("音频设备: %1").arg(device.description()));
         if (device.isNull()) {
             emit logMessage("错误: 无可用音频输出设备");
+            m_audioReady = true;
             return;
         }
         m_audioSink = new QAudioSink(device, fmt);
@@ -172,11 +175,19 @@ void StreamPlayer::decodeLoop()
         m_audioDevice = m_audioSink->start();
         if (!m_audioDevice) {
             emit logMessage("危险: QAudioSink::start() 返回空");
+            m_audioReady = true;
             return;
         }
         emit logMessage("音频输出就绪");
+        m_audioReady = true;
         m_feedTimer->start();
-    }, Qt::BlockingQueuedConnection);
+    }, Qt::QueuedConnection);
+
+    // Wait for audio to be ready (check flag, not blocking the main thread)
+    while (!m_audioReady && m_running)
+        QThread::msleep(10);
+
+    if (!m_running) return;
 
     emit logMessage(QString("解码器就绪: %1").arg(codec->name));
 
