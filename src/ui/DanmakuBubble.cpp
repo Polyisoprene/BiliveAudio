@@ -1,5 +1,4 @@
 #include "DanmakuBubble.h"
-#include "core/DanmakuManager.h"
 #include <QPainter>
 #include <QPainterPath>
 #include <QFontMetrics>
@@ -9,11 +8,8 @@
 #include <QImageReader>
 #include <QBuffer>
 #include <QResizeEvent>
-#include <QDir>
-#include <QCryptographicHash>
-#include <QFile>
 #include <QPointer>
-#include <QStandardPaths>
+#include <QTimer>
 
 static const int kMaxCached = 64;
 static QMap<QString, QPixmap> s_memCache;
@@ -29,27 +25,6 @@ static void touchCache(const QString &uid)
     }
 }
 
-static QString cacheDir()
-{
-    QString dir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/cache/avatars";
-    QDir().mkpath(dir);
-    return dir;
-}
-
-static QString avatarPath(const QString &uid, const QString &faceUrl)
-{
-    QString key = QCryptographicHash::hash(
-        (uid + "|" + faceUrl).toUtf8(), QCryptographicHash::Md5).toHex();
-    return cacheDir() + "/" + key + ".png";
-}
-
-static QPixmap loadFromDisk(const QString &path)
-{
-    QPixmap p;
-    p.load(path);
-    return p;
-}
-
 static constexpr int kCachePixmapSize = 48;
 
 static QPixmap scaledForCache(const QPixmap &src)
@@ -57,11 +32,6 @@ static QPixmap scaledForCache(const QPixmap &src)
     if (src.isNull()) return src;
     return src.scaled(kCachePixmapSize, kCachePixmapSize,
                       Qt::KeepAspectRatio, Qt::SmoothTransformation);
-}
-
-static void saveToDisk(const QString &path, const QPixmap &pix)
-{
-    pix.save(path, "PNG");
 }
 
 DanmakuBubble::DanmakuBubble(const Danmaku &dm, QWidget *parent)
@@ -80,6 +50,72 @@ DanmakuBubble::DanmakuBubble(const Danmaku &dm, QWidget *parent)
     int w = calcWidth();
     setFixedWidth(w);
     recalcHeight(w);
+
+    // Deferred download: don't block the constructor or paintEvent
+    if (!m_dm.faceUrl.isEmpty() && !s_memCache.contains(m_dm.uid))
+        QTimer::singleShot(0, this, &DanmakuBubble::startDownload);
+}
+
+DanmakuBubble::~DanmakuBubble() = default;
+
+void DanmakuBubble::startDownload()
+{
+    if (m_downloading) return;
+    m_downloading = true;
+
+    auto *nam = new QNetworkAccessManager(this);
+    QNetworkRequest req{QUrl(m_dm.faceUrl)};
+    req.setRawHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+    req.setRawHeader("Referer", "https://live.bilibili.com/");
+    auto *reply = nam->get(req);
+    QPointer<DanmakuBubble> self(this);
+    connect(reply, &QNetworkReply::finished, this, [reply, nam, uid = m_dm.uid, origUrl = m_dm.faceUrl, self]() {
+        reply->deleteLater();
+        nam->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) return;
+        QByteArray data = reply->readAll();
+
+        QPixmap av;
+        av.loadFromData(data);
+        if (av.isNull()) {
+            QBuffer buf(&data);
+            QImageReader reader(&buf);
+            QImage img = reader.read();
+            if (!img.isNull())
+                av = QPixmap::fromImage(img);
+        }
+
+        if (av.isNull() && origUrl.endsWith(".webp", Qt::CaseInsensitive)) {
+            QString jpgUrl = origUrl;
+            jpgUrl.replace(jpgUrl.lastIndexOf('.'), 5, ".jpg");
+            auto *nam2 = new QNetworkAccessManager(self ? self->parent() : nullptr);
+            QNetworkRequest req2{QUrl(jpgUrl)};
+            req2.setRawHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36");
+            req2.setRawHeader("Referer", "https://live.bilibili.com/");
+            auto *reply2 = nam2->get(req2);
+            connect(reply2, &QNetworkReply::finished, self.data(), [reply2, nam2, uid, self]() {
+                reply2->deleteLater();
+                nam2->deleteLater();
+                if (reply2->error() != QNetworkReply::NoError) return;
+                QPixmap av2;
+                av2.loadFromData(reply2->readAll());
+                if (av2.isNull()) return;
+                av2 = scaledForCache(av2);
+                s_memCache[uid] = av2;
+                touchCache(uid);
+                if (!self.isNull())
+                    self->update();
+            });
+            return;
+        }
+
+        if (av.isNull()) return;
+        av = scaledForCache(av);
+        s_memCache[uid] = av;
+        touchCache(uid);
+        if (!self.isNull())
+            self->update();
+    });
 }
 
 int DanmakuBubble::calcWidth() const
@@ -133,87 +169,10 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
     QPixmap avatar;
     bool haveAvatar = false;
 
-    if (!haveAvatar && m_dm.faceUrl.isEmpty() && !m_dm.uid.isEmpty()) {
-        QString cached = DanmakuManager::lookupFaceUrl(m_dm.uid);
-        if (!cached.isEmpty())
-            const_cast<DanmakuBubble *>(this)->m_dm.faceUrl = cached;
-    }
-
     if (s_memCache.contains(m_dm.uid) && !s_memCache[m_dm.uid].isNull()) {
         avatar = s_memCache[m_dm.uid];
         haveAvatar = true;
         touchCache(m_dm.uid);
-    }
-
-    if (!haveAvatar && !m_dm.faceUrl.isEmpty()) {
-        QString path = avatarPath(m_dm.uid, m_dm.faceUrl);
-        avatar = loadFromDisk(path);
-        if (!avatar.isNull()) {
-            s_memCache[m_dm.uid] = scaledForCache(avatar);
-            touchCache(m_dm.uid);
-            haveAvatar = true;
-        }
-    }
-
-    if (!haveAvatar && !m_dm.faceUrl.isEmpty() && !s_memCache.contains(m_dm.uid)) {
-        s_memCache[m_dm.uid] = QPixmap(1, 1);
-        touchCache(m_dm.uid);
-
-        auto *nam = new QNetworkAccessManager(this);
-        QNetworkRequest req{QUrl(m_dm.faceUrl)};
-        req.setRawHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-        req.setRawHeader("Referer", "https://live.bilibili.com/");
-        auto *reply = nam->get(req);
-        QPointer<DanmakuBubble> self(this);
-        connect(reply, &QNetworkReply::finished, this, [reply, nam, uid = m_dm.uid, origUrl = m_dm.faceUrl, self]() {
-            reply->deleteLater();
-            nam->deleteLater();
-            if (reply->error() != QNetworkReply::NoError) return;
-            QByteArray data = reply->readAll();
-
-            QPixmap av;
-            av.loadFromData(data);
-            if (av.isNull()) {
-                QBuffer buf(&data);
-                QImageReader reader(&buf);
-                QImage img = reader.read();
-                if (!img.isNull())
-                    av = QPixmap::fromImage(img);
-            }
-
-            if (av.isNull() && origUrl.endsWith(".webp", Qt::CaseInsensitive)) {
-                QString jpgUrl = origUrl;
-                jpgUrl.replace(jpgUrl.lastIndexOf('.'), 5, ".jpg");
-                auto *nam2 = new QNetworkAccessManager(self ? self->parent() : nullptr);
-                QNetworkRequest req2{QUrl(jpgUrl)};
-                req2.setRawHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36");
-                req2.setRawHeader("Referer", "https://live.bilibili.com/");
-                auto *reply2 = nam2->get(req2);
-                connect(reply2, &QNetworkReply::finished, self.data(), [reply2, nam2, uid, self]() {
-                    reply2->deleteLater();
-                    nam2->deleteLater();
-                    if (reply2->error() != QNetworkReply::NoError) return;
-                    QPixmap av2;
-                    av2.loadFromData(reply2->readAll());
-                    if (av2.isNull()) return;
-                    av2 = scaledForCache(av2);
-                    s_memCache[uid] = av2;
-                    touchCache(uid);
-                    saveToDisk(avatarPath(uid, reply2->url().toString()), av2);
-                    if (!self.isNull())
-                        self->update();
-                });
-                return;
-            }
-
-            if (av.isNull()) return;
-            av = scaledForCache(av);
-            s_memCache[uid] = av;
-            touchCache(uid);
-            saveToDisk(avatarPath(uid, reply->url().toString()), av);
-            if (!self.isNull())
-                self->update();
-        });
     }
 
     if (haveAvatar) {
