@@ -422,7 +422,7 @@ void BilibiliApi::fetchUserFace(qint64 uid)
     doFetchUserFace(uid, 0);
 }
 
-void BilibiliApi::doFetchUserFace(qint64 uid, int retryCount)
+void BilibiliApi::doFetchUserFace(qint64 uid, int)
 {
     auto *reply = get(QString("%1/x/web-interface/card?mid=%2&photo=true&web_location=0.0").arg(BASE_API).arg(uid));
     connect(reply, &QNetworkReply::finished, this, [this, reply, uid] {
