@@ -1,6 +1,5 @@
 #pragma once
 #include <QObject>
-#include <QThread>
 #include <QAtomicInt>
 #include <mpv/client.h>
 
@@ -27,9 +26,10 @@ signals:
 private:
     void initMpv();
     void handleEvent(mpv_event *event);
+    static void wakeup(void *ctx);
+    void processEvents();
 
     mpv_handle *m_mpv = nullptr;
-    QThread *m_eventThread = nullptr;
     std::atomic<bool> m_running{false};
     std::atomic<int> m_volume{80};
     bool m_playing = false;

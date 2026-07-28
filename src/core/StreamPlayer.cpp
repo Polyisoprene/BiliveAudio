@@ -36,6 +36,9 @@ void StreamPlayer::initMpv()
     mpv_set_option_string(m_mpv, "demuxer-max-bytes", "2M");
     mpv_set_option_string(m_mpv, "demuxer-max-back-bytes", "512k");
 
+    // Wake up the main thread's event loop when mpv has events
+    mpv_set_wakeup_callback(m_mpv, wakeup, this);
+
     if (mpv_initialize(m_mpv) < 0) {
         emit error("mpv_initialize failed");
         mpv_destroy(m_mpv);
@@ -48,6 +51,22 @@ void StreamPlayer::initMpv()
     mpv_observe_property(m_mpv, 0, "eof-reached", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 0, "pause", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 0, "demuxer-cache-state", MPV_FORMAT_NODE);
+}
+
+void StreamPlayer::wakeup(void *ctx)
+{
+    auto *player = static_cast<StreamPlayer*>(ctx);
+    QMetaObject::invokeMethod(player, "processEvents", Qt::QueuedConnection);
+}
+
+void StreamPlayer::processEvents()
+{
+    while (m_mpv) {
+        mpv_event *event = mpv_wait_event(m_mpv, 0);
+        if (event->event_id == MPV_EVENT_NONE)
+            break;
+        handleEvent(event);
+    }
 }
 
 void StreamPlayer::play(const QString &streamUrl)
@@ -74,18 +93,6 @@ void StreamPlayer::play(const QString &streamUrl)
         return;
     }
 
-    // Start event thread
-    m_eventThread = QThread::create([this] {
-        while (m_running && m_mpv) {
-            mpv_event *event = mpv_wait_event(m_mpv, 0.5);
-            if (event->event_id == MPV_EVENT_NONE)
-                continue;
-            handleEvent(event);
-        }
-    });
-    connect(m_eventThread, &QThread::finished, m_eventThread, &QObject::deleteLater);
-    m_eventThread->start();
-
     emit started();
 }
 
@@ -106,13 +113,17 @@ void StreamPlayer::handleEvent(mpv_event *event)
     }
     case MPV_EVENT_PROPERTY_CHANGE: {
         auto *prop = static_cast<mpv_event_property*>(event->data);
-        if (prop->name && prop->format == MPV_FORMAT_FLAG && strcmp(prop->name, "eof-reached") == 0) {
+        if (!prop) break;
+        // Copy name before comparing — mpv may free the pointer after we return
+        const char *name = prop->name;
+        if (!name) break;
+        if (prop->format == MPV_FORMAT_FLAG && strcmp(name, "eof-reached") == 0) {
             if (*static_cast<int*>(prop->data)) {
                 m_playing = false;
                 emit stopped("eof");
             }
         }
-        if (prop->name && prop->format == MPV_FORMAT_NODE && strcmp(prop->name, "demuxer-cache-state") == 0) {
+        if (prop->format == MPV_FORMAT_NODE && strcmp(name, "demuxer-cache-state") == 0) {
             if (auto *node = static_cast<mpv_node*>(prop->data)) {
                 auto *map = node->u.list;
                 for (int i = 0; i < map->num; i += 2) {
@@ -135,16 +146,6 @@ void StreamPlayer::handleEvent(mpv_event *event)
 void StreamPlayer::stop()
 {
     m_running = false;
-
-    if (m_eventThread) {
-        emit logMessage("stop() 等待事件线程退出...");
-        m_eventThread->quit();
-        if (!m_eventThread->wait(5000)) {
-            m_eventThread->terminate();
-            m_eventThread->wait();
-        }
-        m_eventThread = nullptr;
-    }
 
     if (m_mpv) {
         const char *cmd[] = {"stop", nullptr};
