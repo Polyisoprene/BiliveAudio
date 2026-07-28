@@ -3,7 +3,6 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QImage>
-#include <QMap>
 #include "models/UserInfo.h"
 #include "models/LiveRoom.h"
 
@@ -38,6 +37,8 @@ signals:
     void userFaceReady(qint64 uid, const QString &url);
 
 private:
+    void doFetchUserFace(qint64 uid, int retryCount);
+
     QNetworkAccessManager *m_nam = nullptr;
     QString m_cookie;
     QString m_csrfToken;

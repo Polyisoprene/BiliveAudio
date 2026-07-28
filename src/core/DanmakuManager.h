@@ -13,9 +13,7 @@ public:
     ~DanmakuManager() override;
 
     static QMap<QString, QString> faceCache;
-    static QString faceCacheDir();
     static QString lookupFaceUrl(const QString &uid);
-    static void requestFace(BilibiliApi *api, const QString &uid);
 
     void connectRoom(qint64 roomId);
     void disconnectRoom();
@@ -60,4 +58,5 @@ private:
     void handleDanmuMsg(const QJsonArray &info);
     void handleSuperChat(const QJsonObject &data);
     void handleGift(const QJsonObject &data);
+
 };

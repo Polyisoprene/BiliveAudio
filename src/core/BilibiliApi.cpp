@@ -119,7 +119,7 @@ void BilibiliApi::computeMixinKey(const QString &imgKey, const QString &subKey)
     for (int i : order)
         salt += raw[i];
     m_mixinKey = salt.left(32);
-    LOG_INFO("w_rid mixin key computed");
+    LOG_INFO("w_rid mixin key computed: {}", m_mixinKey.toStdString());
 }
 
 QString BilibiliApi::signUrl(const QString &url) const
@@ -131,13 +131,15 @@ QString BilibiliApi::signUrl(const QString &url) const
 
     qint64 ts = QDateTime::currentSecsSinceEpoch();
     QList<QPair<QString, QString>> params = query.queryItems();
-    params.append({"wts", QString("%1%2").arg(ts).arg(m_mixinKey)});
+    params.append({"wts", QString::number(ts)});
     std::sort(params.begin(), params.end(), [](auto &a, auto &b) { return a.first < b.first; });
 
     QStringList parts;
     for (auto &p : params)
         parts << QString("%1=%2").arg(p.first, p.second);
-    QString wrid = QCryptographicHash::hash(parts.join('&').toUtf8(), QCryptographicHash::Md5).toHex();
+    QString wrid = QCryptographicHash::hash(
+        (parts.join('&') + m_mixinKey).toUtf8(),
+        QCryptographicHash::Md5).toHex();
 
     QUrlQuery finalQuery;
     finalQuery.setQuery(query.toString());
@@ -146,7 +148,9 @@ QString BilibiliApi::signUrl(const QString &url) const
 
     QUrl result(parsed);
     result.setQuery(finalQuery);
-    return result.toString(QUrl::FullyEncoded);
+    QString signedUrl = result.toString(QUrl::FullyEncoded);
+    LOG_DEBUG("signUrl: {}", signedUrl.toStdString());
+    return signedUrl;
 }
 
 // === QR Code Login ===
@@ -411,7 +415,14 @@ void BilibiliApi::sendLiveDanmaku(qint64 roomId, const QString &text)
     });
 }
 
+static constexpr int kFaceRetryMax = 3;
+
 void BilibiliApi::fetchUserFace(qint64 uid)
+{
+    doFetchUserFace(uid, 0);
+}
+
+void BilibiliApi::doFetchUserFace(qint64 uid, int retryCount)
 {
     auto *reply = get(QString("%1/x/web-interface/card?mid=%2&photo=true&web_location=0.0").arg(BASE_API).arg(uid));
     connect(reply, &QNetworkReply::finished, this, [this, reply, uid] {

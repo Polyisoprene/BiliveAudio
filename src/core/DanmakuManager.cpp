@@ -31,12 +31,6 @@ QString DanmakuManager::lookupFaceUrl(const QString &uid)
     return faceCache.value(uid);
 }
 
-void DanmakuManager::requestFace(BilibiliApi *api, const QString &uid)
-{
-    if (uid.isEmpty() || faceCache.contains(uid)) return;
-    api->fetchUserFace(uid.toLongLong());
-}
-
 DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
     : QObject(parent), m_api(api)
 {
@@ -50,9 +44,6 @@ DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
 
     connect(m_reconnectTimer, &QTimer::timeout, this, &DanmakuManager::tryReconnect);
     connect(m_api, &BilibiliApi::danmuInfoReady, this, &DanmakuManager::onDanmuInfoReady);
-    connect(m_api, &BilibiliApi::userFaceReady, this, [this](qint64 uid, const QString &url) {
-        faceCache[QString::number(uid)] = url;
-    });
 }
 
 void DanmakuManager::ensureWebSocket()
@@ -302,20 +293,6 @@ void DanmakuManager::handleDanmuMsg(const QJsonArray &info)
     dm.color = QColor(info[0].toArray()[3].toInt());
     dm.timestamp = QDateTime::currentSecsSinceEpoch();
     dm.type = "danmaku";
-
-    // Avatar URL from info[2][7]
-    if (userInfo.size() > 7)
-        dm.faceUrl = userInfo[7].toString();
-    if (!dm.faceUrl.startsWith("http"))
-        dm.faceUrl.clear();
-
-    // Fetch face via API if not in WebSocket data
-    if (dm.faceUrl.isEmpty() && !dm.uid.isEmpty()) {
-        if (faceCache.contains(dm.uid))
-            dm.faceUrl = faceCache[dm.uid];
-        else
-            m_api->fetchUserFace(dm.uid.toLongLong());
-    }
 
     // Fans medal from info[3] — can be an object or array
     if (info.size() > 3) {

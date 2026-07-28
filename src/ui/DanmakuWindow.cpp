@@ -125,7 +125,6 @@ void DanmakuWindow::insertDanmaku(const Danmaku &dm)
     auto *bubble = new DanmakuBubble(dm);
     item->setSizeHint(bubble->sizeHint());
     m_list->setItemWidget(item, bubble);
-    m_list->addItem(item);
 
     while (m_list->count() > m_maxLines)
         delete m_list->takeItem(0);

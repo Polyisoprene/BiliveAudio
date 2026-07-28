@@ -34,6 +34,10 @@ DanmakuPanel::DanmakuPanel(QWidget *parent)
     m_list->setMinimumHeight(150);
     layout->addWidget(m_list, 1);
 
+    m_flushTimer = new QTimer(this);
+    m_flushTimer->setInterval(30);
+    connect(m_flushTimer, &QTimer::timeout, this, &DanmakuPanel::flushBuffer);
+
     auto *sb = m_list->verticalScrollBar();
     connect(sb, &QScrollBar::valueChanged, this, [this, sb](int) {
         if (m_programmaticScroll) return;
@@ -81,7 +85,6 @@ void DanmakuPanel::insertDanmaku(const Danmaku &dm)
     auto *bubble = new DanmakuBubble(dm);
     item->setSizeHint(bubble->sizeHint());
     m_list->setItemWidget(item, bubble);
-    m_list->addItem(item);
 
     while (m_list->count() > m_maxLines)
         delete m_list->takeItem(0);

@@ -12,10 +12,10 @@ Bilibili API ─→ LiveMonitor ─→ 开播列表
      │                              ▼ 选择房间
      ▼                          getRoomInfo()
   AuthManager ─→ BilibiliApi ─────────→ getStreamUrl()
-     │                                      │
-     │                                      ▼
-     │                                  StreamPlayer (mpv)
-     │                                      │
+      │                                  │
+      │                                  ▼
+      │                     StreamPlayer (FFmpeg → ALSA/WASAPI)
+      │                                  │
      ▼                                      ▼
  DanmakuManager ─────────WebSocket────────→ DanmakuPanel / DanmakuWindow
 ```
@@ -49,14 +49,14 @@ Bilibili API ─→ LiveMonitor ─→ 开播列表
 
 #### StreamPlayer — 音频播放
 
-基于 **libmpv**，配置 `vo=null` `video=no` 完全禁掉视频解码，只请求 FLV 的音频轨道：
+基于 **FFmpeg**（`libavformat`/`libavcodec`/`libswresample`）的解码循环，直接解码 FLV 音频流：
 
 - 设置 `referrer` 和 `user-agent` 通过 CDN 鉴权
-- `stream-lavf-o` 启用自动重连（reconnect）
-- `cache-secs=5` 缓冲 5 秒抗网络抖动
-- 暂停后 `resume()` 执行 `seek 100 absolute-percent` 跳到直播实时位置
-
-**Windows 部署**：mpv 的 DLL 和头文件来自 NuGet 包 `Endpne.LibMPV.Windows`，CI 自动拉取。
+- `av_dict_set` 启用自动重连（reconnect）
+- 环形缓冲区（256 KiB）抗网络抖动
+- Linux 使用 **ALSA** 输出，Windows 使用 **WASAPI** 独占事件驱动模式
+- 暂停后 `resume()` 将环形缓冲区写到末尾，跳到直播实时位置
+- 暂停时跳过解码帧，不停止网络读取（避免重连延迟）
 
 #### DanmakuManager — 弹幕
 
@@ -81,7 +81,7 @@ Bilibili API ─→ LiveMonitor ─→ 开播列表
 
 ### 音频-only 说明
 
-mpv 配置 `video=no` 让 libavformat 在解复用 FLV 时跳过视频包，CPU/GPU 完全不参与视频解码。CDN 仍然发送完整的 FLV 流（无法节省带宽），但本地解码开销几乎为零。
+选择音频流后（`av_find_best_stream` + `AVMEDIA_TYPE_AUDIO`），只解码音频包，CPU/GPU 完全不参与视频解码。CDN 仍然发送完整的 FLV 流（无法节省带宽），但本地解码开销几乎为零。
 
 ## 构建
 
@@ -89,8 +89,8 @@ mpv 配置 `video=no` 让 libavformat 在解复用 FLV 时跳过视频包，CPU/
 
 | 平台 | 依赖 |
 |------|------|
-| Linux | `qt6-base-dev qt6-websockets-dev libmpv-dev libspdlog-dev libqrencode-dev libbrotli-dev libgl-dev cmake g++` |
-| Windows | vcpkg 管理 `spdlog` `libqrencode` `brotli`；mpv 来自 NuGet（CI 自动下载） |
+| Linux | `qt6-base-dev qt6-websockets-dev libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libspdlog-dev libqrencode-dev libbrotli-dev libgl-dev cmake g++` |
+| Windows | vcpkg 管理 `spdlog` `libqrencode` `brotli`；FFmpeg 来自 vcpkg overlay（`vcpkg-overlay/`） |
 
 ### 构建命令
 
@@ -122,7 +122,7 @@ ninja -C build-meson
 | 模块 | 技术 |
 |------|------|
 | UI 框架 | Qt 6 (Widgets, WebSockets, Network) |
-| 音频后端 | libmpv（`video=no`, `vo=null`） |
+| 音频后端 | FFmpeg（`libavformat`/`libavcodec`/`libswresample`）+ ALSA / WASAPI |
 | 日志 | spdlog（异步，每日文件轮转） |
 | 二维码 | libqrencode |
 | 压缩 | Brotli（弹幕 WebSocket protover=3） |
@@ -136,7 +136,7 @@ src/
 │   ├── BilibiliApi.cpp/h      HTTP API 客户端（含 w_rid 签名）
 │   ├── AuthManager.cpp/h      QR 码扫码登录 / 会话恢复
 │   ├── LiveMonitor.cpp/h      动态门户 API 轮询开播状态
-│   ├── StreamPlayer.cpp/h     mpv 音频播放器封装
+│   ├── StreamPlayer.cpp/h     FFmpeg 解码 + ALSA/WASAPI 音频输出
 │   └── DanmakuManager.cpp/h   WebSocket 弹幕（Brotli 解压）
 ├── ui/                        # 界面组件
 │   ├── MainWindow.cpp/h       主窗口
