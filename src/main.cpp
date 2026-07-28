@@ -1,5 +1,6 @@
 #include <clocale>
 #include <QApplication>
+#include <QIcon>
 #include "utils/Logger.h"
 #include "utils/Settings.h"
 #include "ui/MainWindow.h"
@@ -10,6 +11,7 @@ int main(int argc, char *argv[])
     setlocale(LC_NUMERIC, "C");
     app.setApplicationName("BiliveAudio");
     app.setOrganizationName("BiliveAudio");
+    app.setWindowIcon(QIcon(":/icon.png"));
     app.setQuitOnLastWindowClosed(false);
 
     auto &settings = Settings::instance();
