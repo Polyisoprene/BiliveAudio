@@ -55,7 +55,8 @@ DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
     auto *memLogTimer = new QTimer(this);
     memLogTimer->setInterval(30000);
     connect(memLogTimer, &QTimer::timeout, this, [this] {
-        LOG_DEBUG("Mem report: faceCache={}", faceCache.size());
+        LOG_DEBUG("Mem report: faceCache={} faceRetries={} hasPendingDanmu={}",
+                  faceCache.size(), m_api->faceRetriesSize(), m_api->hasPendingDanmuInfo());
     });
     memLogTimer->start();
 

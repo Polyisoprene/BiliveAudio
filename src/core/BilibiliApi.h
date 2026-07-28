@@ -26,6 +26,8 @@ public:
     void sendLiveDanmaku(qint64 roomId, const QString &text);
     void fetchUserFace(qint64 uid);
     void cancelFaceRetries();
+    int faceRetriesSize() const { return m_faceRetries.size(); }
+    bool hasPendingDanmuInfo() const { return m_danmuInfoReply != nullptr; }
 
 signals:
     void qrCodeFetched(const QString &url, const QString &key);
