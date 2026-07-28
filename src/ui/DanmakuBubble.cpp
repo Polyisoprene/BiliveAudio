@@ -10,6 +10,7 @@
 #include <QDir>
 #include <QCryptographicHash>
 #include <QFile>
+#include <QPointer>
 
 // ── LRU memory cache ──
 static const int kMaxCached = 64;
@@ -151,7 +152,8 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
         req.setRawHeader("User-Agent", "Mozilla/5.0");
         req.setRawHeader("Referer", "https://live.bilibili.com/");
         auto *reply = nam->get(req);
-        connect(reply, &QNetworkReply::finished, this, [reply, nam, uid = m_dm.uid]() {
+        QPointer<DanmakuBubble> self(this);
+        connect(reply, &QNetworkReply::finished, this, [reply, nam, uid = m_dm.uid, self]() {
             reply->deleteLater();
             nam->deleteLater();
             if (reply->error() != QNetworkReply::NoError) return;
@@ -161,6 +163,8 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
             s_memCache[uid] = av;
             touchCache(uid);
             saveToDisk(avatarPath(uid, reply->url().toString()), av);
+            if (!self.isNull())
+                self->update();
         });
     }
 
