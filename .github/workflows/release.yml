@@ -18,9 +18,10 @@ jobs:
         run: |
           sudo apt update -qq
           sudo apt install -y -qq \
-            qt6-base-dev qt6-websockets-dev qt6-multimedia-dev \
+            qt6-base-dev qt6-websockets-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswresample-dev \
             libspdlog-dev libqrencode-dev libbrotli-dev \
+            libasound2-dev \
             libgl-dev libfuse2 \
             cmake g++ imagemagick
 
@@ -91,7 +92,7 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          modules: qtwebsockets qtmultimedia
+          modules: qtwebsockets
           cache: true
 
       - name: Build

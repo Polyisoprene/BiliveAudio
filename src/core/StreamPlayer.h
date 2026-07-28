@@ -1,16 +1,16 @@
 #pragma once
 #include <QObject>
 #include <QThread>
-#include <QAudioSink>
-#include <QIODevice>
 #include <cstdint>
 #include <atomic>
-#include <algorithm>
 
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libswresample/swresample.h>
+#ifdef __linux__
+#include <alsa/asoundlib.h>
+#endif
 }
 
 class StreamPlayer : public QObject {
@@ -34,25 +34,8 @@ signals:
     void logMessage(const QString &msg);
 
 private:
-    class AudioDevice : public QIODevice {
-    public:
-        AudioDevice(int16_t *buf, int mask,
-                    std::atomic<int> &wp, std::atomic<int> &rp,
-                    float *vol)
-            : m_buf(buf), m_mask(mask), m_wp(wp), m_rp(rp), m_vol(vol) {}
-        bool isSequential() const override { return true; }
-    protected:
-        qint64 readData(char *data, qint64 maxLen) override;
-        qint64 writeData(const char *, qint64) override { return -1; }
-    private:
-        int16_t *m_buf;
-        int m_mask;
-        std::atomic<int> &m_wp;
-        std::atomic<int> &m_rp;
-        float *m_vol;
-    };
-
     void decodeLoop();
+    void drainToAlsa();
 
     QThread *m_thread = nullptr;
     std::atomic<bool> m_running{false};
@@ -64,8 +47,9 @@ private:
     int m_audioStreamIdx = -1;
     QString m_streamUrl;
 
-    QAudioSink *m_audioSink = nullptr;
-    AudioDevice *m_audioDevice = nullptr;
+#ifdef __linux__
+    snd_pcm_t *m_pcm = nullptr;
+#endif
 
     static constexpr int kBufBits = 19;
     static constexpr int kBufMask = (1 << kBufBits) - 1;
@@ -74,6 +58,6 @@ private:
     std::atomic<int> m_wp{0};
     std::atomic<int> m_rp{0};
 
-    float m_volumeF = 0.8f;
+    int m_volume = 80;
     bool m_playing = false;
 };

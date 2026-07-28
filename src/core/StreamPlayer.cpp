@@ -1,7 +1,5 @@
 #include "StreamPlayer.h"
 #include "utils/Logger.h"
-#include <QAudioFormat>
-#include <QMediaDevices>
 
 StreamPlayer::StreamPlayer(QObject *parent)
     : QObject(parent)
@@ -31,12 +29,13 @@ void StreamPlayer::stop()
     m_running = false;
     m_paused = false;
 
-    if (m_audioSink) {
-        m_audioSink->stop();
-        delete m_audioSink;
-        m_audioSink = nullptr;
-        m_audioDevice = nullptr;
+#ifdef __linux__
+    if (m_pcm) {
+        snd_pcm_drain(m_pcm);
+        snd_pcm_close(m_pcm);
+        m_pcm = nullptr;
     }
+#endif
 
     if (m_thread) {
         m_thread->quit();
@@ -64,27 +63,114 @@ void StreamPlayer::stop()
 void StreamPlayer::pause()
 {
     m_paused = true;
-    if (m_audioSink)
-        m_audioSink->suspend();
+#ifdef __linux__
+    if (m_pcm)
+        snd_pcm_pause(m_pcm, 1);
+#endif
 }
 
 void StreamPlayer::resume()
 {
     m_paused = false;
     m_wp.store(m_rp.load());  // flush buffer, jump to live
-    if (m_audioSink)
-        m_audioSink->resume();
+#ifdef __linux__
+    if (m_pcm) {
+        snd_pcm_pause(m_pcm, 0);
+        snd_pcm_prepare(m_pcm);  // discard stalled data
+    }
+#endif
     emit logMessage("跳到直播实时位置");
 }
 
 void StreamPlayer::setVolume(int percent)
 {
-    m_volumeF = qBound(0, percent, 100) / 100.0f;
+    m_volume = qBound(0, percent, 100);
 }
 
-int StreamPlayer::volume() const
+int StreamPlayer::volume() const { return m_volume; }
+
+#ifdef __linux__
+static int alsaSetParams(snd_pcm_t *pcm)
 {
-    return static_cast<int>(m_volumeF * 100);
+    snd_pcm_hw_params_t *hw;
+    snd_pcm_hw_params_alloca(&hw);
+    snd_pcm_hw_params_any(pcm, hw);
+    snd_pcm_hw_params_set_access(pcm, hw, SND_PCM_ACCESS_RW_INTERLEAVED);
+    snd_pcm_hw_params_set_format(pcm, hw, SND_PCM_FORMAT_S16_LE);
+    snd_pcm_hw_params_set_channels(pcm, hw, 2);
+    unsigned rate = 44100;
+    snd_pcm_hw_params_set_rate_near(pcm, hw, &rate, nullptr);
+    snd_pcm_hw_params(pcm, hw);
+
+    snd_pcm_sw_params_t *sw;
+    snd_pcm_sw_params_alloca(&sw);
+    snd_pcm_sw_params_current(pcm, sw);
+    snd_pcm_uframes_t boundary;
+    snd_pcm_sw_params_get_boundary(sw, &boundary);
+    snd_pcm_sw_params_set_start_threshold(pcm, sw, 0);
+    snd_pcm_sw_params_set_stop_threshold(pcm, sw, boundary);
+    snd_pcm_sw_params(pcm, sw);
+    return 0;
+}
+#endif
+
+void StreamPlayer::drainToAlsa()
+{
+#ifdef __linux__
+    if (!m_pcm) return;
+
+    // poll ALSA — blocks until writable or timeout
+    struct pollfd pfd;
+    int count = snd_pcm_poll_descriptors(m_pcm, &pfd, 1);
+    if (count <= 0) return;
+
+    int ret = ::poll(&pfd, 1, 0);
+    if (ret <= 0 || !(pfd.revents & POLLOUT)) return;
+
+    unsigned short revents;
+    snd_pcm_poll_descriptors_revents(m_pcm, &pfd, 1, &revents);
+    if (revents & POLLERR) {
+        snd_pcm_prepare(m_pcm);
+        return;
+    }
+
+    snd_pcm_sframes_t avail = snd_pcm_avail_update(m_pcm);
+    if (avail <= 0) return;
+
+    int wp = m_wp.load(std::memory_order_acquire);
+    int rp = m_rp.load(std::memory_order_relaxed);
+    int bufAvail = (wp - rp) & kBufMask;
+    if (bufAvail <= 0) return;
+
+    int frames = std::min(static_cast<int>(avail), bufAvail / 2);
+    float vol = m_volume / 100.0f;
+
+    if (vol < 1.0f) {
+        alignas(16) int16_t tmp[4096];
+        int total = frames * 2;
+        int pos = 0;
+        while (pos < total) {
+            int chunk = std::min(total - pos, 4096);
+            for (int i = 0; i < chunk; i++)
+                tmp[i] = static_cast<int16_t>(m_buf[(rp + pos + i) & kBufMask] * vol);
+            snd_pcm_sframes_t w = snd_pcm_writei(m_pcm, tmp, chunk / 2);
+            if (w < 0) {
+                if (w == -EAGAIN) break;
+                snd_pcm_prepare(m_pcm);
+                return;
+            }
+            pos += w * 2;
+        }
+        m_rp.store((rp + pos) & kBufMask, std::memory_order_release);
+    } else {
+        auto *src = reinterpret_cast<const int16_t *>(m_buf);
+        snd_pcm_sframes_t w = snd_pcm_writei(m_pcm, src + rp, frames);
+        if (w > 0)
+            m_rp.store((rp + w * 2) & kBufMask, std::memory_order_release);
+        else if (w == -EPIPE)
+            snd_pcm_prepare(m_pcm);
+    }
+#endif
 }
 
 void StreamPlayer::decodeLoop()
@@ -151,31 +237,22 @@ void StreamPlayer::decodeLoop()
         return;
     }
 
-    // Create audio sink + device on main thread
-    QMetaObject::invokeMethod(this, [this] {
-        QAudioFormat fmt;
-        fmt.setSampleRate(44100);
-        fmt.setChannelCount(2);
-        fmt.setSampleFormat(QAudioFormat::Int16);
-        auto dev = QMediaDevices::defaultAudioOutput();
-        emit logMessage(QString("音频设备: %1").arg(dev.description()));
-        if (dev.isNull()) {
-            emit logMessage("错误: 无可用音频输出设备");
-            return;
-        }
-        m_audioDevice = new AudioDevice(m_buf, kBufMask, m_wp, m_rp, &m_volumeF);
-        m_audioDevice->open(QIODevice::ReadWrite);
-        m_audioSink = new QAudioSink(dev, fmt);
-        m_audioSink->start(m_audioDevice);
-        emit logMessage("音频输出就绪");
-    }, Qt::BlockingQueuedConnection);
+#ifdef __linux__
+    // Open ALSA (non-blocking, pull mode)
+    const char *device = "default";
+    if (snd_pcm_open(&m_pcm, device, SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK) < 0) {
+        emit logMessage(QString("错误: 无法打开 ALSA 设备 %1").arg(device));
+    } else {
+        alsaSetParams(m_pcm);
+        emit logMessage(QString("ALSA 设备就绪: %1").arg(device));
+    }
+#endif
 
     emit logMessage(QString("解码器就绪: %1").arg(codec->name));
 
-    // Decode loop — writes into ring buffer, AudioDevice reads from it
+    // Decode loop: decode → ring buffer → ALSA (pull via poll)
     AVPacket *pkt = av_packet_alloc();
     AVFrame *frame = av_frame_alloc();
-    int frameCount = 0;
 
     while (m_running) {
         if (m_paused) {
@@ -222,55 +299,28 @@ void StreamPlayer::decodeLoop()
                     for (int i = 0; i < count; i++)
                         m_buf[(wp + i) & kBufMask] = samples[i];
                     m_wp.store((wp + count) & kBufMask, std::memory_order_release);
-                    if ((++frameCount % 100) == 0)
-                        emit logMessage(QString("解码中... %1 samples, buf=%2/%3")
-                            .arg(count).arg((m_wp.load() - m_rp.load()) & kBufMask).arg(kBufSize));
                 }
             }
             av_freep(&out[0]);
             av_frame_unref(frame);
         }
+
+        // Try to drain buffer to ALSA (pull: non-blocking poll + writei)
+        drainToAlsa();
     }
 
     av_frame_free(&frame);
     av_packet_free(&pkt);
     avformat_close_input(&m_fmtCtx);
+
+#ifdef __linux__
+    if (m_pcm) {
+        snd_pcm_drain(m_pcm);
+        snd_pcm_close(m_pcm);
+        m_pcm = nullptr;
+    }
+#endif
+
     m_running = false;
-
-    // Stop audio after decode finishes
-    QMetaObject::invokeMethod(this, [this] {
-        if (m_audioSink) {
-            m_audioSink->stop();
-            delete m_audioSink;
-            m_audioSink = nullptr;
-            m_audioDevice = nullptr;
-        }
-    }, Qt::BlockingQueuedConnection);
-
     emit stopped("eof");
-}
-
-// Called by QAudioSink when it needs PCM data (push model)
-qint64 StreamPlayer::AudioDevice::readData(char *data, qint64 maxLen)
-{
-    if (maxLen < 64) return 0;
-
-    int wp = m_wp.load(std::memory_order_acquire);
-    int rp = m_rp.load(std::memory_order_relaxed);
-    int avail = (wp - rp) & m_mask;
-    int wanted = static_cast<int>(maxLen / sizeof(int16_t));
-    int toRead = std::min(avail, wanted);
-
-    if (toRead <= 0) return 0;
-
-    [[maybe_unused]] static bool logged = false;
-    if (!logged) { logged = true; fprintf(stderr, "AUDIO: readData called, maxLen=%lld avail=%d toRead=%d\n", (long long)maxLen, avail, toRead); }
-
-    float vol = *m_vol;
-    auto *dst = reinterpret_cast<int16_t *>(data);
-    for (int i = 0; i < toRead; i++)
-        dst[i] = static_cast<int16_t>(m_buf[(rp + i) & m_mask] * vol);
-
-    m_rp.store((rp + toRead) & m_mask, std::memory_order_release);
-    return toRead * sizeof(int16_t);
 }

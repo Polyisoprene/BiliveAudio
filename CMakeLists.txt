@@ -7,7 +7,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebSockets Multimedia)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebSockets)
 find_package(spdlog REQUIRED)
 
 if(WIN32)
@@ -31,6 +31,7 @@ else()
     pkg_check_modules(SWRESAMPLE REQUIRED IMPORTED_TARGET libswresample)
     pkg_check_modules(BROTLIDEC REQUIRED IMPORTED_TARGET libbrotlidec)
     pkg_check_modules(QRENCODE REQUIRED IMPORTED_TARGET libqrencode)
+    pkg_check_modules(ALSA REQUIRED IMPORTED_TARGET alsa)
 endif()
 
 set(SOURCES
@@ -85,7 +86,7 @@ if(WIN32)
     target_include_directories(${PROJECT_NAME} PRIVATE ${QRENCODE_INCLUDE_DIR}
         ${AVCODEC_INCLUDE_DIR} ${AVFORMAT_INCLUDE_DIR} ${AVUTIL_INCLUDE_DIR} ${SWRESAMPLE_INCLUDE_DIR})
     target_link_libraries(${PROJECT_NAME} PRIVATE
-        Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets Qt6::Multimedia
+        Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets
         spdlog::spdlog
         unofficial::brotli::brotlidec
         ${AVCODEC_LIBRARY} ${AVFORMAT_LIBRARY} ${AVUTIL_LIBRARY} ${SWRESAMPLE_LIBRARY}
@@ -95,12 +96,13 @@ if(WIN32)
     set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
 else()
     target_link_libraries(${PROJECT_NAME} PRIVATE
-        Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets Qt6::Multimedia
+        Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets
         spdlog::spdlog
         PkgConfig::AVCODEC
         PkgConfig::AVFORMAT
         PkgConfig::AVUTIL
         PkgConfig::SWRESAMPLE
+        PkgConfig::ALSA
         PkgConfig::BROTLIDEC
         PkgConfig::QRENCODE
     )
