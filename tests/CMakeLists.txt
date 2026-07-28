@@ -70,6 +70,20 @@ target_link_libraries(test_memory PRIVATE ${TEST_COMMON_LIBS} PkgConfig::MPV)
 add_test(NAME test_memory COMMAND test_memory)
 set_tests_properties(test_memory PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+# ── test_memory_diag (diagnostic memory analysis) ──
+add_executable(test_memory_diag test_memory_diag.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/BilibiliApi.h
+    ${CMAKE_SOURCE_DIR}/src/core/BilibiliApi.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/DanmakuManager.h
+    ${CMAKE_SOURCE_DIR}/src/core/DanmakuManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/StreamPlayer.h
+    ${CMAKE_SOURCE_DIR}/src/core/StreamPlayer.cpp
+)
+target_include_directories(test_memory_diag PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_memory_diag PRIVATE ${TEST_COMMON_LIBS} PkgConfig::MPV)
+add_test(NAME test_memory_diag COMMAND test_memory_diag)
+set_tests_properties(test_memory_diag PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
 # ── test_streamplayer (needs MOC) ──
 add_executable(test_streamplayer test_streamplayer.cpp
     ${CMAKE_SOURCE_DIR}/src/core/StreamPlayer.h
