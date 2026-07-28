@@ -125,7 +125,11 @@ void DanmakuManager::disconnectRoom()
     m_reconnectTimer->stop();
     m_reconnectRetry = 0;
     m_api->cancelFaceRetries();
-    if (m_ws) m_ws->close();
+    if (m_ws) {
+        m_ws->close();
+        m_ws->deleteLater();
+        m_ws = nullptr;
+    }
     m_connected = false;
     m_roomId = 0;
 }

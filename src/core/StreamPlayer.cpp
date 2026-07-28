@@ -106,17 +106,17 @@ void StreamPlayer::handleEvent(mpv_event *event)
     }
     case MPV_EVENT_PROPERTY_CHANGE: {
         auto *prop = static_cast<mpv_event_property*>(event->data);
-        if (prop->format == MPV_FORMAT_FLAG && strcmp(prop->name, "eof-reached") == 0) {
+        if (prop->name && prop->format == MPV_FORMAT_FLAG && strcmp(prop->name, "eof-reached") == 0) {
             if (*static_cast<int*>(prop->data)) {
                 m_playing = false;
                 emit stopped("eof");
             }
         }
-        if (prop->format == MPV_FORMAT_NODE && strcmp(prop->name, "demuxer-cache-state") == 0) {
+        if (prop->name && prop->format == MPV_FORMAT_NODE && strcmp(prop->name, "demuxer-cache-state") == 0) {
             if (auto *node = static_cast<mpv_node*>(prop->data)) {
                 auto *map = node->u.list;
                 for (int i = 0; i < map->num; i += 2) {
-                    if (strcmp(map->values[i].u.string, "fw-bytes") == 0) {
+                    if (map->values[i].u.string && strcmp(map->values[i].u.string, "fw-bytes") == 0) {
                         double bytes = map->values[i+1].u.double_;
                         if (bytes > 1024 * 1024) {
                             emit logMessage(QString("mpv demuxer cache: %1 MB").arg(bytes / 1024 / 1024, 0, 'f', 1));

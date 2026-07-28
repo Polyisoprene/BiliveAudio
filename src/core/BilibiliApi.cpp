@@ -360,9 +360,8 @@ void BilibiliApi::getDanmuInfo(qint64 roomId)
     connect(reply, &QNetworkReply::finished, this, [this, nam, reply, roomId]() {
         if (m_danmuInfoReply == reply)
             m_danmuInfoReply = nullptr;
-        nam->deleteLater();
-        reply->deleteLater();
         QByteArray output = reply->readAll();
+        reply->deleteLater();
         auto doc = QJsonDocument::fromJson(output);
         int code = doc.object()["code"].toInt(-1);
         LOG_INFO("getDanmuInfo dedicated NAM code={}", code);

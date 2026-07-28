@@ -1,0 +1,298 @@
+Start testing: Jul 28 23:03 CST
+----------------------------------------------------------
+1/6 Testing: test_danmaku
+1/6 Test: test_danmaku
+Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_danmaku"
+Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
+"test_danmaku" start time: Jul 28 23:03 CST
+Output:
+----------------------------------------------------------
+Running main() from ./googletest/src/gtest_main.cc
+[==========] Running 8 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 8 tests from DanmakuTest
+[ RUN      ] DanmakuTest.DefaultConstruction
+[       OK ] DanmakuTest.DefaultConstruction (0 ms)
+[ RUN      ] DanmakuTest.FormattedTime
+[       OK ] DanmakuTest.FormattedTime (0 ms)
+[ RUN      ] DanmakuTest.TypeAssignment
+[       OK ] DanmakuTest.TypeAssignment (0 ms)
+[ RUN      ] DanmakuTest.FaceUrlHandling
+[       OK ] DanmakuTest.FaceUrlHandling (0 ms)
+[ RUN      ] DanmakuTest.FansMedal
+[       OK ] DanmakuTest.FansMedal (0 ms)
+[ RUN      ] DanmakuTest.SuperChat
+[       OK ] DanmakuTest.SuperChat (0 ms)
+[ RUN      ] DanmakuTest.Gift
+[       OK ] DanmakuTest.Gift (0 ms)
+[ RUN      ] DanmakuTest.CopyByValue
+[       OK ] DanmakuTest.CopyByValue (0 ms)
+[----------] 8 tests from DanmakuTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 8 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 8 tests.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_danmaku" end time: Jul 28 23:03 CST
+"test_danmaku" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/6 Testing: test_settings
+2/6 Test: test_settings
+Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_settings"
+Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
+"test_settings" start time: Jul 28 23:03 CST
+Output:
+----------------------------------------------------------
+Running main() from ./googletest/src/gtest_main.cc
+[==========] Running 8 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 8 tests from SettingsBasicTest
+[ RUN      ] SettingsBasicTest.SingletonInstance
+[       OK ] SettingsBasicTest.SingletonInstance (0 ms)
+[ RUN      ] SettingsBasicTest.VolumeRoundTrip
+[       OK ] SettingsBasicTest.VolumeRoundTrip (0 ms)
+[ RUN      ] SettingsBasicTest.CookieRoundTrip
+[       OK ] SettingsBasicTest.CookieRoundTrip (0 ms)
+[ RUN      ] SettingsBasicTest.WindowGeometryRoundTrip
+[       OK ] SettingsBasicTest.WindowGeometryRoundTrip (0 ms)
+[ RUN      ] SettingsBasicTest.LastRoomIdRoundTrip
+[       OK ] SettingsBasicTest.LastRoomIdRoundTrip (0 ms)
+[ RUN      ] SettingsBasicTest.DanmakuImageMode
+[       OK ] SettingsBasicTest.DanmakuImageMode (0 ms)
+[ RUN      ] SettingsBasicTest.LogDirRoundTrip
+[       OK ] SettingsBasicTest.LogDirRoundTrip (0 ms)
+[ RUN      ] SettingsBasicTest.LogRetentionDays
+[       OK ] SettingsBasicTest.LogRetentionDays (0 ms)
+[----------] 8 tests from SettingsBasicTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 8 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 8 tests.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_settings" end time: Jul 28 23:03 CST
+"test_settings" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/6 Testing: test_bilibiliapi
+3/6 Test: test_bilibiliapi
+Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_bilibiliapi"
+Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
+"test_bilibiliapi" start time: Jul 28 23:03 CST
+Output:
+----------------------------------------------------------
+Running main() from ./googletest/src/gtest_main.cc
+[==========] Running 8 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 4 tests from BilibiliApiTest
+[ RUN      ] BilibiliApiTest.Construction
+[       OK ] BilibiliApiTest.Construction (0 ms)
+[ RUN      ] BilibiliApiTest.CookieManagement
+[       OK ] BilibiliApiTest.CookieManagement (0 ms)
+[ RUN      ] BilibiliApiTest.SignalConnections
+[       OK ] BilibiliApiTest.SignalConnections (0 ms)
+[ RUN      ] BilibiliApiTest.UserFaceReadySignal
+[       OK ] BilibiliApiTest.UserFaceReadySignal (0 ms)
+[----------] 4 tests from BilibiliApiTest (0 ms total)
+
+[----------] 4 tests from WbiSignTest
+[ RUN      ] WbiSignTest.SignUrlWithWts
+[       OK ] WbiSignTest.SignUrlWithWts (7 ms)
+[ RUN      ] WbiSignTest.ComputeMixinKeyConsistency
+Computed mixinKey: "ea1db124af3c7062474693fa704f4ff8"
+[       OK ] WbiSignTest.ComputeMixinKeyConsistency (0 ms)
+[ RUN      ] WbiSignTest.ParameterSorting
+[       OK ] WbiSignTest.ParameterSorting (0 ms)
+[ RUN      ] WbiSignTest.Md5Hash
+[       OK ] WbiSignTest.Md5Hash (0 ms)
+[----------] 4 tests from WbiSignTest (7 ms total)
+
+[----------] Global test environment tear-down
+[==========] 8 tests from 2 test suites ran. (9 ms total)
+[  PASSED  ] 8 tests.
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"test_bilibiliapi" end time: Jul 28 23:03 CST
+"test_bilibiliapi" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/6 Testing: test_memory
+4/6 Test: test_memory
+Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_memory"
+Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
+"test_memory" start time: Jul 28 23:03 CST
+Output:
+----------------------------------------------------------
+Running main() from ./googletest/src/gtest_main.cc
+[==========] Running 4 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 2 tests from MemoryFaceCacheTest
+[ RUN      ] MemoryFaceCacheTest.LruLimit
+[       OK ] MemoryFaceCacheTest.LruLimit (165 ms)
+[ RUN      ] MemoryFaceCacheTest.LookupRoundTrip
+[       OK ] MemoryFaceCacheTest.LookupRoundTrip (0 ms)
+[----------] 2 tests from MemoryFaceCacheTest (165 ms total)
+
+[----------] 2 tests from MemoryLeakTest
+[ RUN      ] MemoryLeakTest.RepeatedBilibiliApiCreate
+qt.core.qobject.connect: QObject::connect(QObject, Unknown): invalid nullptr parameter
+qt.core.qobject.connect: QObject::connect(QObject, Unknown): invalid nullptr parameter
+[       OK ] MemoryLeakTest.RepeatedBilibiliApiCreate (0 ms)
+[ RUN      ] MemoryLeakTest.RepeatedVolumeChanges
+[       OK ] MemoryLeakTest.RepeatedVolumeChanges (0 ms)
+[----------] 2 tests from MemoryLeakTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 4 tests from 2 test suites ran. (165 ms total)
+[  PASSED  ] 4 tests.
+<end of output>
+Test time =   0.23 sec
+----------------------------------------------------------
+Test Passed.
+"test_memory" end time: Jul 28 23:03 CST
+"test_memory" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/6 Testing: test_memory_diag
+5/6 Test: test_memory_diag
+Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_memory_diag"
+Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
+"test_memory_diag" start time: Jul 28 23:03 CST
+Output:
+----------------------------------------------------------
+Running main() from ./googletest/src/gtest_main.cc
+[==========] Running 5 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 5 tests from MemDiag
+[ RUN      ] MemDiag.FontCacheCjkText
+
+  ── Baseline ──
+  RSS: 64884 KB
+  Heap: arena=588KB used=533KB free=54KB chunks=83
+
+  ── After 500 CJK chars + 100 long texts ──
+  RSS: 76040 KB
+  Heap: arena=3048KB used=2533KB free=514KB chunks=551
+[       OK ] MemDiag.FontCacheCjkText (35 ms)
+[ RUN      ] MemDiag.ListWidgetStress
+
+  ── Before list widget ──
+  RSS: 76104 KB
+  Heap: arena=3048KB used=2333KB free=714KB chunks=556
+
+  ── After 3× list create/delete cycles ──
+  RSS: 78684 KB
+  Heap: arena=3180KB used=2500KB free=679KB chunks=644
+[       OK ] MemDiag.ListWidgetStress (42 ms)
+[ RUN      ] MemDiag.NetworkRequests
+
+  ── Before network ──
+  RSS: 78684 KB
+  Heap: arena=3180KB used=2500KB free=679KB chunks=646
+
+  ── After 5×20 network requests ──
+  RSS: 83488 KB
+  Heap: arena=4500KB used=3951KB free=548KB chunks=437
+[       OK ] MemDiag.NetworkRequests (1020 ms)
+[ RUN      ] MemDiag.HeapFragmentation
+
+  ── Before frag ──
+  RSS: 83488 KB
+  Heap: arena=4500KB used=3867KB free=632KB chunks=756
+
+  ── After frag (10 rounds) ──
+  RSS: 84136 KB
+  Heap: arena=5140KB used=4032KB free=1107KB chunks=747
+
+  ── After malloc_trim ──
+  RSS: 83624 KB
+  Heap: arena=5012KB used=4032KB free=979KB chunks=747
+[       OK ] MemDiag.HeapFragmentation (2 ms)
+[ RUN      ] MemDiag.SimulatedUsage
+
+  ── Start ──
+  RSS: 83624 KB
+  Heap: arena=5012KB used=4032KB free=979KB chunks=747
+
+  ── After 50× BilibiliApi ──
+  RSS: 83688 KB
+  Heap: arena=5012KB used=4032KB free=979KB chunks=747
+
+  ── After 20× StreamPlayer ──
+  RSS: 83688 KB
+  Heap: arena=5012KB used=4032KB free=979KB chunks=747
+
+  ── After faceCache fill+clear ──
+  RSS: 84168 KB
+  Heap: arena=5144KB used=4098KB free=1045KB chunks=749
+
+  ── Final (malloc_trim) ──
+  RSS: 83756 KB
+  Heap: arena=5012KB used=4098KB free=913KB chunks=749
+[       OK ] MemDiag.SimulatedUsage (121 ms)
+[----------] 5 tests from MemDiag (1222 ms total)
+
+[----------] Global test environment tear-down
+[==========] 5 tests from 1 test suite ran. (1224 ms total)
+[  PASSED  ] 5 tests.
+QThreadStorage: entry 2 destroyed before end of thread 0x615eb8e9b450
+QThreadStorage: entry 1 destroyed before end of thread 0x615eb8e9b450
+<end of output>
+Test time =   1.30 sec
+----------------------------------------------------------
+Test Passed.
+"test_memory_diag" end time: Jul 28 23:03 CST
+"test_memory_diag" time elapsed: 00:00:01
+----------------------------------------------------------
+
+6/6 Testing: test_streamplayer
+6/6 Test: test_streamplayer
+Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_streamplayer"
+Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
+"test_streamplayer" start time: Jul 28 23:03 CST
+Output:
+----------------------------------------------------------
+Running main() from ./googletest/src/gtest_main.cc
+[==========] Running 9 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 9 tests from StreamPlayerTest
+[ RUN      ] StreamPlayerTest.Construction
+[       OK ] StreamPlayerTest.Construction (0 ms)
+[ RUN      ] StreamPlayerTest.DefaultVolume
+[       OK ] StreamPlayerTest.DefaultVolume (0 ms)
+[ RUN      ] StreamPlayerTest.VolumeRange
+[       OK ] StreamPlayerTest.VolumeRange (0 ms)
+[ RUN      ] StreamPlayerTest.VolumeClamping
+[       OK ] StreamPlayerTest.VolumeClamping (0 ms)
+[ RUN      ] StreamPlayerTest.StopWhenNotPlaying
+[       OK ] StreamPlayerTest.StopWhenNotPlaying (0 ms)
+[ RUN      ] StreamPlayerTest.LogMessageSignal
+[       OK ] StreamPlayerTest.LogMessageSignal (0 ms)
+[ RUN      ] StreamPlayerTest.ErrorSignal
+[       OK ] StreamPlayerTest.ErrorSignal (0 ms)
+[ RUN      ] StreamPlayerTest.PauseResume
+[       OK ] StreamPlayerTest.PauseResume (0 ms)
+[ RUN      ] StreamPlayerTest.DoubleStop
+[       OK ] StreamPlayerTest.DoubleStop (0 ms)
+[----------] 9 tests from StreamPlayerTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 9 tests from 1 test suite ran. (1 ms total)
+[  PASSED  ] 9 tests.
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"test_streamplayer" end time: Jul 28 23:03 CST
+"test_streamplayer" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Jul 28 23:03 CST

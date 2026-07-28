@@ -1,0 +1,91 @@
+Start testing: Jul 28 22:39 CST
+----------------------------------------------------------
+2/4 Testing: test_settings
+2/4 Test: test_settings
+Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_settings"
+Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
+"test_settings" start time: Jul 28 22:39 CST
+Output:
+----------------------------------------------------------
+Running main() from ./googletest/src/gtest_main.cc
+[==========] Running 8 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 8 tests from SettingsBasicTest
+[ RUN      ] SettingsBasicTest.SingletonInstance
+[       OK ] SettingsBasicTest.SingletonInstance (0 ms)
+[ RUN      ] SettingsBasicTest.VolumeRoundTrip
+[       OK ] SettingsBasicTest.VolumeRoundTrip (0 ms)
+[ RUN      ] SettingsBasicTest.CookieRoundTrip
+[       OK ] SettingsBasicTest.CookieRoundTrip (0 ms)
+[ RUN      ] SettingsBasicTest.WindowGeometryRoundTrip
+[       OK ] SettingsBasicTest.WindowGeometryRoundTrip (0 ms)
+[ RUN      ] SettingsBasicTest.LastRoomIdRoundTrip
+[       OK ] SettingsBasicTest.LastRoomIdRoundTrip (0 ms)
+[ RUN      ] SettingsBasicTest.DanmakuImageMode
+[       OK ] SettingsBasicTest.DanmakuImageMode (0 ms)
+[ RUN      ] SettingsBasicTest.LogDirRoundTrip
+[       OK ] SettingsBasicTest.LogDirRoundTrip (0 ms)
+[ RUN      ] SettingsBasicTest.LogRetentionDays
+[       OK ] SettingsBasicTest.LogRetentionDays (0 ms)
+[----------] 8 tests from SettingsBasicTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 8 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 8 tests.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_settings" end time: Jul 28 22:39 CST
+"test_settings" time elapsed: 00:00:00
+----------------------------------------------------------
+
+1/4 Testing: test_danmaku
+1/4 Test: test_danmaku
+Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_danmaku"
+Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
+"test_danmaku" start time: Jul 28 22:39 CST
+Output:
+----------------------------------------------------------
+Running main() from ./googletest/src/gtest_main.cc
+[==========] Running 8 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 8 tests from DanmakuTest
+[ RUN      ] DanmakuTest.DefaultConstruction
+/home/polyisoprene/Documents/BiliveAudio/tests/test_danmaku.cpp:9: Failure
+Value of: dm.color.isValid()
+  Actual: false
+Expected: true
+
+/home/polyisoprene/Documents/BiliveAudio/tests/test_danmaku.cpp:10: Failure
+Expected equality of these values:
+  dm.type
+    Which is: {}
+  QString("danmaku")
+    Which is: { 2-byte object <64-00>, 2-byte object <61-00>, 2-byte object <6E-00>, 2-byte object <6D-00>, 2-byte object <61-00>, 2-byte object <6B-00>, 2-byte object <75-00> }
+
+[  FAILED  ] DanmakuTest.DefaultConstruction (0 ms)
+[ RUN      ] DanmakuTest.FormattedTime
+[       OK ] DanmakuTest.FormattedTime (0 ms)
+[ RUN      ] DanmakuTest.TypeAssignment
+[       OK ] DanmakuTest.TypeAssignment (0 ms)
+[ RUN      ] DanmakuTest.FaceUrlHandling
+[       OK ] DanmakuTest.FaceUrlHandling (0 ms)
+[ RUN      ] DanmakuTest.FansMedal
+[       OK ] DanmakuTest.FansMedal (0 ms)
+[ RUN      ] DanmakuTest.SuperChat
+[       OK ] DanmakuTest.SuperChat (0 ms)
+[ RUN      ] DanmakuTest.Gift
+[       OK ] DanmakuTest.Gift (0 ms)
+[ RUN      ] DanmakuTest.CopyByValue
+[       OK ] DanmakuTest.CopyByValue (0 ms)
+[----------] 8 tests from DanmakuTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 8 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 7 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] DanmakuTest.DefaultConstruction
+
+ 1 FAILED TEST
+<end of output>
