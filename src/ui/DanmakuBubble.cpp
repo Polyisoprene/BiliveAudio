@@ -1,5 +1,6 @@
 #include "DanmakuBubble.h"
 #include "core/DanmakuManager.h"
+#include "utils/Settings.h"
 #include <QPainter>
 #include <QPainterPath>
 #include <QFontMetrics>
@@ -204,31 +205,31 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
 
     int ax = margin + 8, ay = 10, as = m_avatarSize;
 
+    bool imageMode = Settings::instance().danmakuImageMode();
+
     QPixmap avatar;
     bool haveAvatar = false;
 
-    // Fallback: if faceUrl empty, check DanmakuManager faceCache
-    if (!haveAvatar && m_dm.faceUrl.isEmpty() && !m_dm.uid.isEmpty()) {
-        QString cached = DanmakuManager::lookupFaceUrl(m_dm.uid);
-        if (!cached.isEmpty())
-            const_cast<DanmakuBubble *>(this)->m_dm.faceUrl = cached;
-    }
-
-    // Disk cache: if faceUrl available but not in memory, try disk
-    if (!haveAvatar && !m_dm.faceUrl.isEmpty()) {
-        QString path = avatarPath(m_dm.uid, m_dm.faceUrl);
-        avatar = loadFromDisk(path);
-        if (!avatar.isNull()) {
-            s_memCache[m_dm.uid] = scaledForCache(avatar);
-            touchCache(m_dm.uid);
-            haveAvatar = true;
+    if (imageMode) {
+        if (!haveAvatar && m_dm.faceUrl.isEmpty() && !m_dm.uid.isEmpty()) {
+            QString cached = DanmakuManager::lookupFaceUrl(m_dm.uid);
+            if (!cached.isEmpty())
+                const_cast<DanmakuBubble *>(this)->m_dm.faceUrl = cached;
         }
-    }
-
-    if (s_memCache.contains(m_dm.uid) && !s_memCache[m_dm.uid].isNull()) {
-        avatar = s_memCache[m_dm.uid];
-        haveAvatar = true;
-        touchCache(m_dm.uid);
+        if (!haveAvatar && !m_dm.faceUrl.isEmpty()) {
+            QString path = avatarPath(m_dm.uid, m_dm.faceUrl);
+            avatar = loadFromDisk(path);
+            if (!avatar.isNull()) {
+                s_memCache[m_dm.uid] = scaledForCache(avatar);
+                touchCache(m_dm.uid);
+                haveAvatar = true;
+            }
+        }
+        if (s_memCache.contains(m_dm.uid) && !s_memCache[m_dm.uid].isNull()) {
+            avatar = s_memCache[m_dm.uid];
+            haveAvatar = true;
+            touchCache(m_dm.uid);
+        }
     }
 
     if (haveAvatar) {
