@@ -56,6 +56,17 @@ DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
     m_faceFetchTimer->setInterval(300);
     connect(m_faceFetchTimer, &QTimer::timeout, this, &DanmakuManager::processFaceQueue);
 
+    auto *memLogTimer = new QTimer(this);
+    memLogTimer->setInterval(30000);
+    connect(memLogTimer, &QTimer::timeout, this, [this] {
+        // BilibiliApi::m_faceRetries is private; estimate via a simple approach
+        auto *bapi = qobject_cast<BilibiliApi*>(m_api);
+        Q_UNUSED(bapi);
+        LOG_DEBUG("Mem report: faceCache={} pending={} queue={}",
+                  faceCache.size(), m_faceFetchPending.size(), m_faceFetchQueue.size());
+    });
+    memLogTimer->start();
+
     connect(m_reconnectTimer, &QTimer::timeout, this, &DanmakuManager::tryReconnect);
     connect(m_api, &BilibiliApi::danmuInfoReady, this, &DanmakuManager::onDanmuInfoReady);
     connect(m_api, &BilibiliApi::userFaceReady, this, [](qint64 uid, const QString &url) {
@@ -90,6 +101,8 @@ DanmakuManager::~DanmakuManager()
 
 void DanmakuManager::connectRoom(qint64 roomId)
 {
+    LOG_DEBUG("Mem: faceCache={} faceFetchPending={} faceFetchQueue={}",
+              faceCache.size(), m_faceFetchPending.size(), m_faceFetchQueue.size());
     m_roomId = roomId;
     m_reconnectRetry = 0;
     emit logMessage(QString("弹幕: 正在获取房间 %1 的服务器信息...").arg(roomId));
