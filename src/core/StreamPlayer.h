@@ -3,8 +3,7 @@
 #include <QThread>
 #include <QAudioSink>
 #include <QTimer>
-#include <QMutex>
-#include <QByteArray>
+#include <cstdint>
 #include <atomic>
 
 extern "C" {
@@ -52,10 +51,12 @@ private:
     QIODevice *m_audioDevice = nullptr;
     QTimer *m_feedTimer = nullptr;
 
-    static constexpr int kBufSize = 44100 * 4 * 4;
-    QByteArray m_buf;
-    QMutex m_bufMutex;
-    int m_bufLevel = 0;
+    static constexpr int kBufBits = 19;  // ~6 seconds at 44100 stereo s16
+    static constexpr int kBufMask = (1 << kBufBits) - 1;
+    static constexpr int kBufSize = 1 << kBufBits;
+    int16_t m_buf[kBufSize];
+    std::atomic<int> m_wp{0};
+    std::atomic<int> m_rp{0};
 
     int m_volume = 80;
     bool m_playing = false;
