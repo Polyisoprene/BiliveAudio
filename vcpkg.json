@@ -5,6 +5,11 @@
   "dependencies": [
     "spdlog",
     "libqrencode",
-    "brotli"
+    "brotli",
+    {
+      "name": "ffmpeg",
+      "default-features": false,
+      "features": ["avcodec", "avformat", "swresample"]
+    }
   ]
 }

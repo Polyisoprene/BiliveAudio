@@ -70,29 +70,7 @@ jobs:
           files: BiliveAudio-x86_64.AppImage
           tag: ${{ github.ref }}
 
-  build_ffmpeg:
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: pwsh
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup vcpkg (ffmpeg only)
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgJsonGlob: vcpkg.ffmpeg.json
-          runVcpkgInstall: true
-
-      - name: Upload ffmpeg libs
-        uses: actions/upload-artifact@v4
-        with:
-          name: ffmpeg-libs
-          path: vcpkg_installed/
-          retention-days: 1
-
   windows:
-    needs: build_ffmpeg
     runs-on: windows-latest
     defaults:
       run:
@@ -100,13 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download ffmpeg libs
-        uses: actions/download-artifact@v4
-        with:
-          name: ffmpeg-libs
-          path: ffmpeg_artifacts
-
-      - name: Setup vcpkg (other deps)
+      - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json
@@ -121,19 +93,6 @@ jobs:
           arch: win64_msvc2022_64
           modules: qtwebsockets qtmultimedia
           cache: true
-
-      - name: Merge ffmpeg into vcpkg_installed
-        run: |
-          $tripletDir = Get-ChildItem -Path "ffmpeg_artifacts" -Directory | Select-Object -First 1
-          if (-not $tripletDir) { throw "No triplet dir found in ffmpeg_artifacts" }
-          $src = $tripletDir.FullName
-          $target = "vcpkg_installed\$($tripletDir.Name)"
-          if (-not (Test-Path $target)) { New-Item -ItemType Directory -Force -Path $target | Out-Null }
-          Copy-Item -Recurse -Force "$src\include" "$target\" -ErrorAction SilentlyContinue
-          Copy-Item -Recurse -Force "$src\lib" "$target\" -ErrorAction SilentlyContinue
-          Copy-Item -Recurse -Force "$src\bin" "$target\" -ErrorAction SilentlyContinue
-          Copy-Item -Recurse -Force "$src\share" "$target\" -ErrorAction SilentlyContinue
-          Write-Host "ffmpeg merged into $target"
 
       - name: Build
         run: |
