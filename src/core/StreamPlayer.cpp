@@ -351,6 +351,9 @@ void StreamPlayer::decodeLoop()
     int totalWritten = 0;
 
     while (m_running) {
+#ifdef __linux__
+        drainToAlsa();
+#endif
         if (m_paused) { QThread::msleep(50); continue; }
 
         int ret = av_read_frame(m_fmtCtx, pkt);
@@ -393,10 +396,6 @@ void StreamPlayer::decodeLoop()
             av_freep(&out[0]);
             av_frame_unref(frame);
         }
-
-#ifdef __linux__
-        drainToAlsa();
-#endif
     }
 
     av_frame_free(&frame);
