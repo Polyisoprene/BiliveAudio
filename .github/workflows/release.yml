@@ -18,9 +18,10 @@ jobs:
         run: |
           sudo apt update -qq
           sudo apt install -y -qq \
-            qt6-base-dev qt6-websockets-dev \
-            libmpv-dev libspdlog-dev libqrencode-dev \
-            libbrotli-dev libgl-dev libfuse2 \
+            qt6-base-dev qt6-websockets-dev qt6-multimedia-dev \
+            libavcodec-dev libavformat-dev libavutil-dev libswresample-dev \
+            libspdlog-dev libqrencode-dev libbrotli-dev \
+            libgl-dev libfuse2 \
             cmake g++ imagemagick
 
       - name: Build
@@ -89,60 +90,18 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          modules: qtwebsockets
+          modules: qtwebsockets qtmultimedia
           cache: true
-
-      - name: Download mpv dev
-        shell: pwsh
-        run: |
-          $url = "https://www.nuget.org/api/v2/package/mpv/0.28.2"
-          Write-Host "Downloading mpv 0.28.2 from NuGet ..."
-          Invoke-WebRequest -Uri $url -OutFile mpv.nupkg -UseBasicParsing
-          New-Item -ItemType Directory -Force -Path mpv_root | Out-Null
-          Expand-Archive -Path mpv.nupkg -DestinationPath mpv_root -Force
-          $headerDir = "$(Resolve-Path mpv_root)\Include"
-          # NuGet puts client.h directly in Include/, need Include/mpv/client.h
-          if (Test-Path "$headerDir/client.h" -and -not (Test-Path "$headerDir/mpv/client.h")) {
-            New-Item -ItemType Directory -Force -Path "$headerDir/mpv" | Out-Null
-            Copy-Item "$headerDir/client.h" "$headerDir/mpv/client.h"
-          }
-          echo "MPV_INCLUDE_DIR=$headerDir" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "MPV_LIBRARY=$(Resolve-Path mpv_root)\bin\x64\mpv.lib" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "MPV_DLL_DIR=$(Resolve-Path mpv_root)\bin\x64" | Out-File -FilePath $env:GITHUB_ENV -Append
-          Write-Host "mpv ready"
-
-      - name: Strip mpv DLL
-        shell: pwsh
-        run: |
-          $dll = "${{ env.MPV_DLL_DIR }}\mpv-1.dll"
-          Write-Host "Before: $((Get-Item $dll).Length / 1MB) MB"
-          # Use dumpbin to check for debug info
-          $hdr = & dumpbin /headers $dll
-          if ($hdr -match 'debug directory') {
-            Write-Host "Has debug info, stripping..."
-            # strip via Git for Windows (available on path)
-            & strip --strip-all $dll 2>$null
-            if ($LASTEXITCODE -eq 0) {
-              Write-Host "After: $((Get-Item $dll).Length / 1MB) MB"
-            } else {
-              Write-Host "strip not available, skipping"
-            }
-          } else {
-            Write-Host "No embedded debug info, nothing to strip"
-          }
 
       - name: Build
         run: |
           cmake -S . -B build `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" `
-            -DMPV_INCLUDE_DIR="${{ env.MPV_INCLUDE_DIR }}" `
-            -DMPV_LIBRARY="${{ env.MPV_LIBRARY }}"
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
           cmake --build build --config Release
 
       - name: Package
         run: |
-          copy "${{ env.MPV_DLL_DIR }}\mpv-1.dll" build\Release\
           windeployqt build\Release\BiliveAudio.exe
           del build\Release\*.pdb
           Compress-Archive -Path build\Release\* -DestinationPath BiliveAudio-windows.zip

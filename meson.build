@@ -5,17 +5,19 @@ project('biliveaudio', 'cpp',
 qt6 = import('qt6')
 
 # Qt6 modules
-qt6_dep = dependency('qt6', modules: ['Core', 'Gui', 'Widgets', 'Network', 'WebSockets'])
+qt6_dep = dependency('qt6', modules: ['Core', 'Gui', 'Widgets', 'Network', 'WebSockets', 'Multimedia'])
 
 # Platform dependencies
 spdlog_dep = dependency('spdlog', method: 'pkg-config')
 
 if host_machine.system() == 'linux'
-  mpv_dep = dependency('mpv', method: 'pkg-config')
+  avcodec_dep = dependency('libavcodec', method: 'pkg-config')
+  avformat_dep = dependency('libavformat', method: 'pkg-config')
+  avutil_dep = dependency('libavutil', method: 'pkg-config')
+  swresample_dep = dependency('libswresample', method: 'pkg-config')
   brotli_dep = dependency('libbrotlidec', method: 'pkg-config')
   qrencode_dep = dependency('libqrencode', method: 'pkg-config')
 else
-  mpv_dep = dependency('mpv', required: false)
   brotli_dep = dependency('brotli', required: false)
   qrencode_dep = dependency('libqrencode', required: false)
 endif
@@ -68,12 +70,7 @@ processed = qt6.preprocess(
 all_deps = [qt6_dep, spdlog_dep]
 
 if host_machine.system() == 'linux'
-  all_deps += [mpv_dep, brotli_dep, qrencode_dep]
-endif
-
-# Platform defines
-if host_machine.system() == 'windows'
-  add_project_arguments('-DBILIVE_AUDIO_WINDOWS=1', language: 'cpp')
+  all_deps += [avcodec_dep, avformat_dep, avutil_dep, swresample_dep, brotli_dep, qrencode_dep]
 endif
 
 executable('BiliveAudio',
