@@ -100,7 +100,7 @@ void StreamPlayer::decodeLoop()
     av_dict_set(&opts, "reconnect_streamed", "1", 0);
     av_dict_set(&opts, "reconnect_delay_max", "5", 0);
     av_dict_set(&opts, "fflags", "nobuffer", 0);
-    av_dict_set(&opts, "probesize", "50000", 0);
+    av_dict_set(&opts, "probesize", "500000", 0);
     av_dict_set(&opts, "referer", "https://live.bilibili.com/", 0);
     av_dict_set(&opts, "user_agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36", 0);
     av_dict_set(&opts, "timeout", "10000000", 0);
@@ -155,16 +155,18 @@ void StreamPlayer::decodeLoop()
         return;
     }
 
-    // Start audio output
-    QAudioFormat fmt;
-    fmt.setSampleRate(44100);
-    fmt.setChannelCount(2);
-    fmt.setSampleFormat(QAudioFormat::Float);
-    auto device = QMediaDevices::defaultAudioOutput();
-    m_audioSink = new QAudioSink(device, fmt);
-    m_audioSink->setVolume(m_volume / 100.0);
-    m_audioDevice = m_audioSink->start();
-    m_feedTimer->start();
+    // Start audio output on main thread
+    QMetaObject::invokeMethod(this, [this] {
+        QAudioFormat fmt;
+        fmt.setSampleRate(44100);
+        fmt.setChannelCount(2);
+        fmt.setSampleFormat(QAudioFormat::Float);
+        auto device = QMediaDevices::defaultAudioOutput();
+        m_audioSink = new QAudioSink(device, fmt);
+        m_audioSink->setVolume(m_volume / 100.0);
+        m_audioDevice = m_audioSink->start();
+        m_feedTimer->start();
+    }, Qt::BlockingQueuedConnection);
 
     emit logMessage(QString("解码器就绪: %1").arg(codec->name));
 
