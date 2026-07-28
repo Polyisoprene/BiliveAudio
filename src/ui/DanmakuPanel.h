@@ -7,8 +7,6 @@
 #include <QQueue>
 #include "models/Danmaku.h"
 
-class QPropertyAnimation; // forward declaration
-
 class DanmakuPanel : public QWidget {
     Q_OBJECT
 public:
@@ -29,7 +27,6 @@ private:
     QLineEdit *m_input = nullptr;
     QPushButton *m_sendBtn = nullptr;
     QLabel *m_statusLabel = nullptr;
-    QPropertyAnimation *m_scrollAnim = nullptr;
     QTimer *m_flushTimer = nullptr;
     QQueue<Danmaku> m_buffer;
     bool m_programmaticScroll = false;
