@@ -77,15 +77,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache vcpkg installed
+        id: cache-vcpkg
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_INSTALLED_DIR }}
+          key: vcpkg-installed-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlay/ports/ffmpeg/vcpkg.json', 'vcpkg-overlay/ports/ffmpeg/portfile.cmake', 'vcpkg-overlay/ports/ffmpeg/build.sh.in') }}
+
       - name: Setup vcpkg
-        id: setup-vcpkg
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json
           vcpkgConfigurationJsonGlob: vcpkg-configuration.json
           runVcpkgInstall: true
-          additionalCachedList: |
-            vcpkg-overlay
 
       - name: Install Qt6
         uses: jurplel/install-qt-action@v4
