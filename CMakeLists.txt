@@ -49,7 +49,6 @@ set(SOURCES
     src/ui/TrayManager.cpp
     src/ui/DanmakuBubble.cpp
     src/ui/DanmakuPanel.cpp
-    src/ui/DanmakuWindow.cpp
     src/ui/SettingsDialog.cpp
     src/utils/Settings.cpp
 )
@@ -68,7 +67,6 @@ set(HEADERS
     src/ui/TrayManager.h
     src/ui/DanmakuBubble.h
     src/ui/DanmakuPanel.h
-    src/ui/DanmakuWindow.h
     src/ui/SettingsDialog.h
     src/utils/Logger.h
     src/utils/Settings.h

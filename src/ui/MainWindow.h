@@ -11,7 +11,6 @@ class LoginDialog;
 class LiveListWidget;
 class PlayerControl;
 class DanmakuPanel;
-class DanmakuWindow;
 class AppController;
 
 class MainWindow : public QMainWindow {
@@ -38,10 +37,8 @@ private:
     QPushButton *m_openRoomBtn = nullptr;
     QPushButton *m_loginBtn = nullptr;
     QPushButton *m_logoutBtn = nullptr;
-    QPushButton *m_popOutBtn = nullptr;
     LiveListWidget *m_liveList = nullptr;
     PlayerControl *m_playerControl = nullptr;
     DanmakuPanel *m_danmakuPanel = nullptr;
-    DanmakuWindow *m_danmakuWindow = nullptr;
     QTextEdit *m_logView = nullptr;
 };

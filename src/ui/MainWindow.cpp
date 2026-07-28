@@ -4,7 +4,6 @@
 #include "LiveListWidget.h"
 #include "PlayerControl.h"
 #include "DanmakuPanel.h"
-#include "DanmakuWindow.h"
 #include "SettingsDialog.h"
 #include "core/AppController.h"
 #include "core/BilibiliApi.h"
@@ -27,7 +26,6 @@ MainWindow::MainWindow(QWidget *parent)
     m_ctrl = new AppController(this);
 
     setupUI();
-    m_danmakuWindow = new DanmakuWindow;
     setupConnections();
 
     m_tray = new TrayManager(this);
@@ -66,10 +64,6 @@ void MainWindow::setupUI()
     topBar->addStretch();
     topBar->addWidget(m_loginBtn);
     topBar->addWidget(m_logoutBtn);
-
-    m_popOutBtn = new QPushButton("弹出弹幕框");
-    m_popOutBtn->setStyleSheet("background-color: #444;");
-    topBar->addWidget(m_popOutBtn);
 
     auto *settingsBtn = new QPushButton("设置");
     settingsBtn->setStyleSheet("background-color: #444;");
@@ -154,7 +148,6 @@ void MainWindow::setupConnections()
     connect(m_liveList, &LiveListWidget::roomSelected, this, [this](qint64 roomId, const QString &username, const QString &title) {
         m_playerControl->setRoomInfo(username, title);
         m_danmakuPanel->clear();
-        m_danmakuWindow->clear();
         m_ctrl->openRoom(roomId);
     });
 
@@ -188,7 +181,6 @@ void MainWindow::setupConnections()
         Q_UNUSED(roomId);
         Q_UNUSED(url);
         m_danmakuPanel->clear();
-        m_danmakuWindow->clear();
     });
 
     connect(m_ctrl, &AppController::playStateChanged, this, [this](bool playing, const QString &status) {
@@ -201,26 +193,11 @@ void MainWindow::setupConnections()
         appendLog(QString("[错误] 播放器: %1").arg(msg));
     });
 
-    // Danmaku - dual output
+    // Danmaku
     connect(m_ctrl, &AppController::danmakuReceived, m_danmakuPanel, &DanmakuPanel::addDanmaku);
-    connect(m_ctrl, &AppController::danmakuReceived, m_danmakuWindow, &DanmakuWindow::addDanmaku);
-    connect(m_ctrl, &AppController::danmakuConnected, this, [this](bool connected) {
-        m_danmakuPanel->setConnected(connected);
-        m_danmakuWindow->setConnected(connected);
-    });
+    connect(m_ctrl, &AppController::danmakuConnected, m_danmakuPanel, &DanmakuPanel::setConnected);
 
     connect(m_danmakuPanel, &DanmakuPanel::sendDanmakuRequested, m_ctrl, &AppController::sendDanmaku);
-    connect(m_danmakuWindow, &DanmakuWindow::sendDanmakuRequested, m_ctrl, &AppController::sendDanmaku);
-
-    // Pop-out / close danmaku window
-    connect(m_popOutBtn, &QPushButton::clicked, this, [this] {
-        m_danmakuPanel->setVisible(false);
-        m_danmakuWindow->setVisible(true);
-    });
-    connect(m_danmakuWindow, &DanmakuWindow::closed, this, [this] {
-        m_danmakuWindow->setVisible(false);
-        m_danmakuPanel->setVisible(true);
-    });
 
     // Live list
     connect(m_ctrl, &AppController::liveListUpdated, m_liveList, &LiveListWidget::updateList);

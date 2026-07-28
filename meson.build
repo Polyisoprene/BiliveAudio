@@ -38,7 +38,6 @@ sources = files(
   'src/ui/PlayerControl.cpp',
   'src/ui/TrayManager.cpp',
   'src/ui/DanmakuPanel.cpp',
-  'src/ui/DanmakuWindow.cpp',
   'src/ui/DanmakuBubble.cpp',
   'src/ui/SettingsDialog.cpp',
   'src/utils/Settings.cpp',
@@ -58,7 +57,6 @@ moc_headers = files(
   'src/ui/PlayerControl.h',
   'src/ui/TrayManager.h',
   'src/ui/DanmakuPanel.h',
-  'src/ui/DanmakuWindow.h',
   'src/ui/DanmakuBubble.h',
   'src/ui/SettingsDialog.h',
 )
