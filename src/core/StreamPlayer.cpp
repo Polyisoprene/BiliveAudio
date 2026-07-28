@@ -25,15 +25,16 @@ void StreamPlayer::initMpv()
     // Audio-only configuration
     mpv_set_option_string(m_mpv, "vo", "null");
     mpv_set_option_string(m_mpv, "video", "no");
-    mpv_set_option_string(m_mpv, "cache", "yes");
-    mpv_set_option_string(m_mpv, "cache-secs", "10");
-    mpv_set_option_string(m_mpv, "audio-buffer", "2");
+    mpv_set_option_string(m_mpv, "cache", "no");
+    mpv_set_option_string(m_mpv, "audio-buffer", "1");
     mpv_set_option_string(m_mpv, "reconnect", "1");
+    mpv_set_option_string(m_mpv, "reconnect_streamed", "1");
     mpv_set_option_string(m_mpv, "user-agent",
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36");
     mpv_set_option_string(m_mpv, "referrer",
         "https://live.bilibili.com/");
-    mpv_set_option_string(m_mpv, "demuxer-max-bytes", "10M");
+    mpv_set_option_string(m_mpv, "demuxer-max-bytes", "2M");
+    mpv_set_option_string(m_mpv, "demuxer-max-back-bytes", "512k");
 
     if (mpv_initialize(m_mpv) < 0) {
         emit error("mpv_initialize failed");
@@ -42,10 +43,11 @@ void StreamPlayer::initMpv()
         return;
     }
 
-    // Observe playback state
+    // Observe playback state and cache
     mpv_observe_property(m_mpv, 0, "playback-time", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 0, "eof-reached", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 0, "pause", MPV_FORMAT_FLAG);
+    mpv_observe_property(m_mpv, 0, "demuxer-cache-state", MPV_FORMAT_NODE);
 }
 
 void StreamPlayer::play(const QString &streamUrl)
@@ -108,6 +110,19 @@ void StreamPlayer::handleEvent(mpv_event *event)
             if (*static_cast<int*>(prop->data)) {
                 m_playing = false;
                 emit stopped("eof");
+            }
+        }
+        if (prop->format == MPV_FORMAT_NODE && strcmp(prop->name, "demuxer-cache-state") == 0) {
+            if (auto *node = static_cast<mpv_node*>(prop->data)) {
+                auto *map = node->u.list;
+                for (int i = 0; i < map->num; i += 2) {
+                    if (strcmp(map->values[i].u.string, "fw-bytes") == 0) {
+                        double bytes = map->values[i+1].u.double_;
+                        if (bytes > 1024 * 1024) {
+                            emit logMessage(QString("mpv demuxer cache: %1 MB").arg(bytes / 1024 / 1024, 0, 'f', 1));
+                        }
+                    }
+                }
             }
         }
         break;
