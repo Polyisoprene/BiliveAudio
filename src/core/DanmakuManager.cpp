@@ -26,6 +26,17 @@ static const int OPERATION_MESSAGE = 5;
 
 QMap<QString, QString> DanmakuManager::faceCache;
 
+QString DanmakuManager::lookupFaceUrl(const QString &uid)
+{
+    return faceCache.value(uid);
+}
+
+void DanmakuManager::requestFace(BilibiliApi *api, const QString &uid)
+{
+    if (uid.isEmpty() || faceCache.contains(uid)) return;
+    api->fetchUserFace(uid.toLongLong());
+}
+
 DanmakuManager::DanmakuManager(BilibiliApi *api, QObject *parent)
     : QObject(parent), m_api(api)
 {

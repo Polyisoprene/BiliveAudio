@@ -1,5 +1,6 @@
 #include "DanmakuBubble.h"
 #include "utils/Settings.h"
+#include "core/DanmakuManager.h"
 #include <QPainter>
 #include <QPainterPath>
 #include <QFontMetrics>
@@ -138,6 +139,13 @@ void DanmakuBubble::paintEvent(QPaintEvent *)
         avatar = s_memCache[m_dm.uid];
         haveAvatar = true;
         touchCache(m_dm.uid);
+    }
+
+    // 2b. Fallback: if faceUrl empty, check static cache
+    if (!haveAvatar && m_dm.faceUrl.isEmpty() && !m_dm.uid.isEmpty()) {
+        QString cached = DanmakuManager::lookupFaceUrl(m_dm.uid);
+        if (!cached.isEmpty())
+            const_cast<DanmakuBubble *>(this)->m_dm.faceUrl = cached;
     }
 
     if (!haveAvatar && !m_dm.faceUrl.isEmpty()) {
