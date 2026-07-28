@@ -72,24 +72,16 @@ jobs:
       run:
         shell: pwsh
     env:
-      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/../vcpkg_cache
       VCPKG_INSTALLED_DIR: ${{ github.workspace }}/vcpkg_installed
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Cache vcpkg binaries
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlay/ports/ffmpeg/portfile.cmake', 'vcpkg-overlay/ports/ffmpeg/vcpkg.json') }}
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json
           runVcpkgInstall: true
-          doNotCache: true
 
       - name: Install Qt6
         uses: jurplel/install-qt-action@v4
