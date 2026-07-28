@@ -196,21 +196,34 @@ void StreamPlayer::decodeLoop()
                     tmp[i] = static_cast<int16_t>(m_buf[(rp + pos + i) & kBufMask] * vol);
                 snd_pcm_sframes_t w = snd_pcm_writei(pcm.get(), tmp, chunk / 2);
                 if (w < 0) {
-                    if (w != -EAGAIN)
-                        emit logMessage("ALSA 写入错误");
+                    if (w == -EAGAIN) return;
+                    if (w == -EPIPE || w == -EBADFD) {
+                        emit logMessage("ALSA 复位重启...");
+                        snd_pcm_prepare(pcm.get());
+                        snd_pcm_start(pcm.get());
+                    }
                     return;
                 }
                 pos += w * 2;
             }
             m_rp.store((rp + pos) & kBufMask, std::memory_order_release);
-        } else {
-            auto *src = reinterpret_cast<const int16_t *>(m_buf);
-            snd_pcm_sframes_t w = snd_pcm_writei(pcm.get(), src + rp, frames);
-            if (w > 0)
-                m_rp.store((rp + w * 2) & kBufMask, std::memory_order_release);
-            else if (w == -EPIPE)
-                snd_pcm_prepare(pcm.get());
+    } else {
+        auto *src = reinterpret_cast<const int16_t *>(m_buf);
+        snd_pcm_sframes_t w = snd_pcm_writei(pcm.get(), src + rp, frames);
+        if (w > 0) {
+            m_rp.store((rp + w * 2) & kBufMask, std::memory_order_release);
+        } else if (w == -EPIPE) {
+            emit logMessage("ALSA 欠载, 复位重启...");
+            snd_pcm_prepare(pcm.get());
+            snd_pcm_start(pcm.get());
+        } else if (w == -EBADFD) {
+            emit logMessage("ALSA 状态异常, 重启...");
+            snd_pcm_prepare(pcm.get());
+            snd_pcm_start(pcm.get());
+        } else if (w < 0) {
+            emit logMessage(QString("ALSA 写入错误: %1").arg(static_cast<int>(w)));
         }
+    }
 #endif
     };
 
