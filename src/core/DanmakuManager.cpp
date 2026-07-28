@@ -304,9 +304,12 @@ void DanmakuManager::handleDanmuMsg(const QJsonArray &info)
     dm.timestamp = QDateTime::currentSecsSinceEpoch();
     dm.type = "danmaku";
 
-    // Face URL from WebSocket data
-    if (userInfo.size() > 7)
-        dm.faceUrl = userInfo[7].toString();
+    // Face URL from info[0][13].user.base.face (new Bilibili protocol)
+    auto info0 = info[0].toArray();
+    if (info0.size() > 13 && info0[13].isObject()) {
+        auto userObj = info0[13].toObject()["user"].toObject();
+        dm.faceUrl = userObj["base"].toObject()["face"].toString();
+    }
     if (!dm.faceUrl.startsWith("http"))
         dm.faceUrl.clear();
 
