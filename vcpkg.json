@@ -6,10 +6,6 @@
     "spdlog",
     "libqrencode",
     "brotli",
-    {
-      "name": "ffmpeg",
-      "default-features": false,
-      "features": ["avcodec", "avformat", "swresample"]
-    }
+    "mpv"
   ]
 }
