@@ -9,7 +9,9 @@
 
 #include <QApplication>
 #include <QTimer>
+#ifdef __linux__
 #include <malloc.h>
+#endif
 
 AppController *AppController::s_instance = nullptr;
 
@@ -27,12 +29,14 @@ AppController::AppController(QObject *parent)
     setupConnections();
 
     // Periodic heap defragmentation to prevent memory bloat from glibc fragmentation
+#ifdef __linux__
     auto *heapTimer = new QTimer(this);
     heapTimer->setInterval(60000);
     connect(heapTimer, &QTimer::timeout, this, []() {
         malloc_trim(0);
     });
     heapTimer->start();
+#endif
 
     LOG_INFO("AppController created");
 }
