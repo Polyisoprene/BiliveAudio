@@ -1,10 +1,10 @@
-Start testing: Jul 28 23:03 CST
+Start testing: Jul 28 23:06 CST
 ----------------------------------------------------------
 1/6 Testing: test_danmaku
 1/6 Test: test_danmaku
 Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_danmaku"
 Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
-"test_danmaku" start time: Jul 28 23:03 CST
+"test_danmaku" start time: Jul 28 23:06 CST
 Output:
 ----------------------------------------------------------
 Running main() from ./googletest/src/gtest_main.cc
@@ -36,7 +36,7 @@ Running main() from ./googletest/src/gtest_main.cc
 Test time =   0.01 sec
 ----------------------------------------------------------
 Test Passed.
-"test_danmaku" end time: Jul 28 23:03 CST
+"test_danmaku" end time: Jul 28 23:06 CST
 "test_danmaku" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -44,7 +44,7 @@ Test Passed.
 2/6 Test: test_settings
 Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_settings"
 Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
-"test_settings" start time: Jul 28 23:03 CST
+"test_settings" start time: Jul 28 23:06 CST
 Output:
 ----------------------------------------------------------
 Running main() from ./googletest/src/gtest_main.cc
@@ -76,7 +76,7 @@ Running main() from ./googletest/src/gtest_main.cc
 Test time =   0.01 sec
 ----------------------------------------------------------
 Test Passed.
-"test_settings" end time: Jul 28 23:03 CST
+"test_settings" end time: Jul 28 23:06 CST
 "test_settings" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -84,7 +84,7 @@ Test Passed.
 3/6 Test: test_bilibiliapi
 Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_bilibiliapi"
 Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
-"test_bilibiliapi" start time: Jul 28 23:03 CST
+"test_bilibiliapi" start time: Jul 28 23:06 CST
 Output:
 ----------------------------------------------------------
 Running main() from ./googletest/src/gtest_main.cc
@@ -103,7 +103,7 @@ Running main() from ./googletest/src/gtest_main.cc
 
 [----------] 4 tests from WbiSignTest
 [ RUN      ] WbiSignTest.SignUrlWithWts
-[       OK ] WbiSignTest.SignUrlWithWts (7 ms)
+[       OK ] WbiSignTest.SignUrlWithWts (8 ms)
 [ RUN      ] WbiSignTest.ComputeMixinKeyConsistency
 Computed mixinKey: "ea1db124af3c7062474693fa704f4ff8"
 [       OK ] WbiSignTest.ComputeMixinKeyConsistency (0 ms)
@@ -111,16 +111,16 @@ Computed mixinKey: "ea1db124af3c7062474693fa704f4ff8"
 [       OK ] WbiSignTest.ParameterSorting (0 ms)
 [ RUN      ] WbiSignTest.Md5Hash
 [       OK ] WbiSignTest.Md5Hash (0 ms)
-[----------] 4 tests from WbiSignTest (7 ms total)
+[----------] 4 tests from WbiSignTest (8 ms total)
 
 [----------] Global test environment tear-down
-[==========] 8 tests from 2 test suites ran. (9 ms total)
+[==========] 8 tests from 2 test suites ran. (10 ms total)
 [  PASSED  ] 8 tests.
 <end of output>
 Test time =   0.03 sec
 ----------------------------------------------------------
 Test Passed.
-"test_bilibiliapi" end time: Jul 28 23:03 CST
+"test_bilibiliapi" end time: Jul 28 23:06 CST
 "test_bilibiliapi" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -128,7 +128,7 @@ Test Passed.
 4/6 Test: test_memory
 Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_memory"
 Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
-"test_memory" start time: Jul 28 23:03 CST
+"test_memory" start time: Jul 28 23:06 CST
 Output:
 ----------------------------------------------------------
 Running main() from ./googletest/src/gtest_main.cc
@@ -136,10 +136,10 @@ Running main() from ./googletest/src/gtest_main.cc
 [----------] Global test environment set-up.
 [----------] 2 tests from MemoryFaceCacheTest
 [ RUN      ] MemoryFaceCacheTest.LruLimit
-[       OK ] MemoryFaceCacheTest.LruLimit (165 ms)
+[       OK ] MemoryFaceCacheTest.LruLimit (170 ms)
 [ RUN      ] MemoryFaceCacheTest.LookupRoundTrip
 [       OK ] MemoryFaceCacheTest.LookupRoundTrip (0 ms)
-[----------] 2 tests from MemoryFaceCacheTest (165 ms total)
+[----------] 2 tests from MemoryFaceCacheTest (170 ms total)
 
 [----------] 2 tests from MemoryLeakTest
 [ RUN      ] MemoryLeakTest.RepeatedBilibiliApiCreate
@@ -151,13 +151,13 @@ qt.core.qobject.connect: QObject::connect(QObject, Unknown): invalid nullptr par
 [----------] 2 tests from MemoryLeakTest (0 ms total)
 
 [----------] Global test environment tear-down
-[==========] 4 tests from 2 test suites ran. (165 ms total)
+[==========] 4 tests from 2 test suites ran. (171 ms total)
 [  PASSED  ] 4 tests.
 <end of output>
-Test time =   0.23 sec
+Test time =   0.24 sec
 ----------------------------------------------------------
 Test Passed.
-"test_memory" end time: Jul 28 23:03 CST
+"test_memory" end time: Jul 28 23:06 CST
 "test_memory" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -165,7 +165,7 @@ Test Passed.
 5/6 Test: test_memory_diag
 Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_memory_diag"
 Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
-"test_memory_diag" start time: Jul 28 23:03 CST
+"test_memory_diag" start time: Jul 28 23:06 CST
 Output:
 ----------------------------------------------------------
 Running main() from ./googletest/src/gtest_main.cc
@@ -175,81 +175,81 @@ Running main() from ./googletest/src/gtest_main.cc
 [ RUN      ] MemDiag.FontCacheCjkText
 
   ── Baseline ──
-  RSS: 64884 KB
+  RSS: 64772 KB
   Heap: arena=588KB used=533KB free=54KB chunks=83
 
   ── After 500 CJK chars + 100 long texts ──
-  RSS: 76040 KB
-  Heap: arena=3048KB used=2533KB free=514KB chunks=551
+  RSS: 76052 KB
+  Heap: arena=3048KB used=2533KB free=514KB chunks=557
 [       OK ] MemDiag.FontCacheCjkText (35 ms)
 [ RUN      ] MemDiag.ListWidgetStress
 
   ── Before list widget ──
-  RSS: 76104 KB
-  Heap: arena=3048KB used=2333KB free=714KB chunks=556
+  RSS: 76116 KB
+  Heap: arena=3048KB used=2333KB free=714KB chunks=562
 
   ── After 3× list create/delete cycles ──
-  RSS: 78684 KB
-  Heap: arena=3180KB used=2500KB free=679KB chunks=644
-[       OK ] MemDiag.ListWidgetStress (42 ms)
+  RSS: 78688 KB
+  Heap: arena=3180KB used=2494KB free=685KB chunks=635
+[       OK ] MemDiag.ListWidgetStress (43 ms)
 [ RUN      ] MemDiag.NetworkRequests
 
   ── Before network ──
-  RSS: 78684 KB
-  Heap: arena=3180KB used=2500KB free=679KB chunks=646
+  RSS: 78688 KB
+  Heap: arena=3180KB used=2494KB free=685KB chunks=637
 
   ── After 5×20 network requests ──
-  RSS: 83488 KB
-  Heap: arena=4500KB used=3951KB free=548KB chunks=437
-[       OK ] MemDiag.NetworkRequests (1020 ms)
+  RSS: 83492 KB
+  Heap: arena=4500KB used=3944KB free=555KB chunks=476
+[       OK ] MemDiag.NetworkRequests (1065 ms)
 [ RUN      ] MemDiag.HeapFragmentation
 
   ── Before frag ──
-  RSS: 83488 KB
-  Heap: arena=4500KB used=3867KB free=632KB chunks=756
+  RSS: 83492 KB
+  Heap: arena=4500KB used=3859KB free=640KB chunks=787
 
   ── After frag (10 rounds) ──
-  RSS: 84136 KB
-  Heap: arena=5140KB used=4032KB free=1107KB chunks=747
+  RSS: 84144 KB
+  Heap: arena=5144KB used=4038KB free=1105KB chunks=743
 
   ── After malloc_trim ──
-  RSS: 83624 KB
-  Heap: arena=5012KB used=4032KB free=979KB chunks=747
+  RSS: 83632 KB
+  Heap: arena=5016KB used=4038KB free=977KB chunks=743
 [       OK ] MemDiag.HeapFragmentation (2 ms)
 [ RUN      ] MemDiag.SimulatedUsage
 
   ── Start ──
-  RSS: 83624 KB
-  Heap: arena=5012KB used=4032KB free=979KB chunks=747
+  RSS: 83632 KB
+  Heap: arena=5016KB used=4038KB free=977KB chunks=743
 
   ── After 50× BilibiliApi ──
-  RSS: 83688 KB
-  Heap: arena=5012KB used=4032KB free=979KB chunks=747
+  RSS: 83696 KB
+  Heap: arena=5016KB used=4038KB free=977KB chunks=743
 
   ── After 20× StreamPlayer ──
-  RSS: 83688 KB
-  Heap: arena=5012KB used=4032KB free=979KB chunks=747
+  RSS: 83696 KB
+  Heap: arena=5016KB used=4038KB free=977KB chunks=743
 
   ── After faceCache fill+clear ──
-  RSS: 84168 KB
-  Heap: arena=5144KB used=4098KB free=1045KB chunks=749
+  RSS: 84172 KB
+  Heap: arena=5148KB used=4103KB free=1044KB chunks=752
 
   ── Final (malloc_trim) ──
-  RSS: 83756 KB
-  Heap: arena=5012KB used=4098KB free=913KB chunks=749
-[       OK ] MemDiag.SimulatedUsage (121 ms)
-[----------] 5 tests from MemDiag (1222 ms total)
+  RSS: 83764 KB
+  Heap: arena=5016KB used=4103KB free=912KB chunks=752
+[       OK ] MemDiag.SimulatedUsage (125 ms)
+[----------] 5 tests from MemDiag (1272 ms total)
 
 [----------] Global test environment tear-down
-[==========] 5 tests from 1 test suite ran. (1224 ms total)
+[==========] 5 tests from 1 test suite ran. (1274 ms total)
 [  PASSED  ] 5 tests.
-QThreadStorage: entry 2 destroyed before end of thread 0x615eb8e9b450
-QThreadStorage: entry 1 destroyed before end of thread 0x615eb8e9b450
+QThreadStorage: entry 2 destroyed before end of thread 0x5b8a1901f450
+QThreadStorage: entry 1 destroyed before end of thread 0x5b8a1901f450
 <end of output>
-Test time =   1.30 sec
+Test time =   1.34 sec
 ----------------------------------------------------------
 Test Passed.
-"test_memory_diag" end time: Jul 28 23:03 CST
+"test_memory_diag" end time: Jul 28 23:06 CST
 "test_memory_diag" time elapsed: 00:00:01
 ----------------------------------------------------------
 
@@ -257,7 +257,7 @@ Test Passed.
 6/6 Test: test_streamplayer
 Command: "/home/polyisoprene/Documents/BiliveAudio/build-tests/tests/test_streamplayer"
 Directory: /home/polyisoprene/Documents/BiliveAudio/build-tests/tests
-"test_streamplayer" start time: Jul 28 23:03 CST
+"test_streamplayer" start time: Jul 28 23:06 CST
 Output:
 ----------------------------------------------------------
 Running main() from ./googletest/src/gtest_main.cc
@@ -291,8 +291,8 @@ Running main() from ./googletest/src/gtest_main.cc
 Test time =   0.06 sec
 ----------------------------------------------------------
 Test Passed.
-"test_streamplayer" end time: Jul 28 23:03 CST
+"test_streamplayer" end time: Jul 28 23:06 CST
 "test_streamplayer" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-End testing: Jul 28 23:03 CST
+End testing: Jul 28 23:06 CST

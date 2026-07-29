@@ -1,0 +1,10 @@
+mpv provides:
+  include/mpv/client.h, include/mpv/render.h, etc.
+  lib/libmpv-2.lib (import library)
+  bin/libmpv-2.dll (runtime DLL)
+
+To use from CMake:
+  find_path(MPV_INCLUDE_DIR NAMES mpv/client.h REQUIRED)
+  find_library(MPV_LIBRARY_RELEASE NAMES mpv libmpv-2 REQUIRED)
+  target_include_directories(main PRIVATE ${MPV_INCLUDE_DIR})
+  target_link_libraries(main PRIVATE ${MPV_LIBRARY_RELEASE})

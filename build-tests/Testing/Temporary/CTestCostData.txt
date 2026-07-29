@@ -1,7 +1,7 @@
-test_danmaku 11 0.000929685
-test_settings 12 0.000557988
-test_bilibiliapi 11 0.00293506
-test_streamplayer 9 0.00710114
-test_memory 3 0.0778142
-test_memory_diag 2 0.648841
+test_danmaku 12 0.000803127
+test_settings 13 0.000496974
+test_bilibiliapi 12 0.00273941
+test_streamplayer 10 0.00581206
+test_memory 4 0.0607134
+test_memory_diag 3 0.447449
 ---
