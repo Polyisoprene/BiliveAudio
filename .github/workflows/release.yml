@@ -80,7 +80,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.VCPKG_INSTALLED_DIR }}
-          key: vcpkg-installed-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlay/ports/mpv/portfile.cmake', 'vcpkg-overlay/ports/mpv/vcpkg.json') }}
+          key: vcpkg-installed-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
@@ -99,12 +99,26 @@ jobs:
           modules: qtwebsockets
           cache: true
 
+      - name: Download mpv from NuGet
+        run: |
+          Invoke-WebRequest -Uri "https://www.nuget.org/api/v2/package/Endpne.LibMPV.Windows/0.39.0" -OutFile "$env:RUNNER_TEMP\mpv.nupkg"
+          Expand-Archive -Path "$env:RUNNER_TEMP\mpv.nupkg" -DestinationPath "$env:RUNNER_TEMP\mpv"
+          echo "MPV_INCLUDE_DIR=$env:RUNNER_TEMP\mpv\build\x64\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "MPV_LIBRARY_RELEASE=$env:RUNNER_TEMP\mpv\build\x64\libmpv-2.lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Build
         run: |
           cmake -S . -B build `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" `
+            -DMPV_INCLUDE_DIR="$env:MPV_INCLUDE_DIR" `
+            -DMPV_LIBRARY_RELEASE="$env:MPV_LIBRARY_RELEASE"
           cmake --build build --config Release
+
+      - name: Stage mpv DLL
+        run: |
+          Copy-Item "$env:RUNNER_TEMP\mpv\build\x64\libmpv-2.dll" build\Release\
+          Copy-Item "$env:RUNNER_TEMP\mpv\build\x64\*.dll" build\Release\
 
       - name: Package
         run: |

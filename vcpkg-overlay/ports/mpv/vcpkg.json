@@ -1,8 +1,0 @@
-{
-  "name": "mpv",
-  "version": "0.39.0",
-  "description": "mpv is a free and open-source general-purpose video player",
-  "homepage": "https://mpv.io/",
-  "license": "GPL-2.0-or-later",
-  "supports": "!(arm & windows)"
-}
