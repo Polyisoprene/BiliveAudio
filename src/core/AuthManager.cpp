@@ -23,6 +23,7 @@ AuthManager::AuthManager(BilibiliApi *api, QObject *parent)
 void AuthManager::startLogin()
 {
     setState(State::LoggingIn);
+    m_pollActive = true;
     m_api->fetchQRCode();
 }
 
@@ -31,6 +32,7 @@ void AuthManager::logout()
     m_api->setCookie({});
     m_userInfo = {};
     setState(State::LoggedOut);
+    m_pollActive = false;
     m_pollTimer->stop();
     LOG_INFO("User logged out");
 }
@@ -47,6 +49,9 @@ void AuthManager::onQRCodeFetched(const QString &url, const QString &key)
     m_qrcodeKey = key;
     emit qrCodeReady(url, key);
 
+    // 仅自己发起的登录（startLogin）才轮询；LoginDialog 的登录由对话框自己轮询，
+    // 否则同一 m_api 会被两个定时器同时 poll，产生重复请求和重复登录成功
+    if (!m_pollActive) return;
     m_pollTimer->start();
     LOG_INFO("QR code displayed, polling started");
 }
@@ -54,6 +59,7 @@ void AuthManager::onQRCodeFetched(const QString &url, const QString &key)
 void AuthManager::onQRCodePolled(const QString &status, const QString &cookie, const QString &username)
 {
     if (status == "confirmed") {
+        m_pollActive = false;
         m_pollTimer->stop();
         m_api->setCookie(cookie);
         m_api->getUserInfo();
@@ -61,6 +67,7 @@ void AuthManager::onQRCodePolled(const QString &status, const QString &cookie, c
         LOG_INFO("Login successful: {}", username.toStdString());
     } else if (status == "expired") {
         // 二维码过期，停止轮询，等待界面刷新二维码
+        m_pollActive = false;
         m_pollTimer->stop();
     }
 }

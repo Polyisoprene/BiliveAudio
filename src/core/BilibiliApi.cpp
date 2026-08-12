@@ -243,6 +243,9 @@ void BilibiliApi::exchangeTicket(const QString &crossDomainUrl, int hop, const Q
     request.setRawHeader("Referer", "https://passport.bilibili.com");
     // 手动跟随重定向：自动跟随只能看到最终响应的头，重定向链上每一跳的Set-Cookie都会丢失
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
+    // 禁用HTTP/2：Qt会把HTTP/2下同名的多个Set-Cookie头合并成一行（值以\n分隔），
+    // 导致同响应的bili_jct/DedeUserID等cookie丢失（与getDanmuInfo的专用NAM保持一致）
+    request.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
     request.setTransferTimeout(15000);
 
     auto *reply = m_nam->get(request);
@@ -255,13 +258,24 @@ void BilibiliApi::exchangeTicket(const QString &crossDomainUrl, int hop, const Q
         }
 
         // 收集本跳响应的Set-Cookie（只取name=value部分）
+        // 防御性按\n拆行：HTTP/2下多个同名Set-Cookie头可能被Qt合并为一行
         QStringList cookies = collectedCookies;
         for (const auto &h : reply->rawHeaderPairs()) {
             if (QString(h.first).toLower() == "set-cookie") {
-                QString line = QString::fromUtf8(h.second).section(';', 0, 0).trimmed();
-                if (!line.section('=', 0, 0).trimmed().isEmpty())
-                    cookies << line;
+                const QStringList lines = QString::fromUtf8(h.second).split('\n');
+                for (const QString &cl : lines) {
+                    QString line = cl.section(';', 0, 0).trimmed();
+                    if (!line.section('=', 0, 0).trimmed().isEmpty())
+                        cookies << line;
+                }
             }
+        }
+        if (cookies.size() > collectedCookies.size()) {
+            QStringList names;
+            for (int i = collectedCookies.size(); i < cookies.size(); ++i)
+                names << cookies[i].section('=', 0, 0);
+            LOG_INFO("exchangeTicket: hop={} 本跳收集到{}个Set-Cookie: [{}]",
+                     hop, cookies.size() - collectedCookies.size(), names.join(", ").toStdString());
         }
 
         // 跟随Location继续下一跳

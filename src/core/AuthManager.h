@@ -31,6 +31,7 @@ private:
     UserInfo m_userInfo;
     QString m_qrcodeKey;
     QTimer *m_pollTimer = nullptr;
+    bool m_pollActive = false;
 
     void onQRCodeFetched(const QString &url, const QString &key);
     void onQRCodePolled(const QString &status, const QString &cookie, const QString &username);
