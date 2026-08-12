@@ -191,27 +191,107 @@ void BilibiliApi::pollQRCode(const QString &qrcodeKey)
         int dataCode = data["code"].toInt();
         QString confirmUrl = data["url"].toString();
 
-        if (dataCode == 0 && !confirmUrl.isEmpty()) {
-            // DDTV-style: extract cookies from the confirm URL query string
-            QUrl confirmQUrl(confirmUrl);
-            QUrlQuery confirmQuery(confirmQUrl);
-            QStringList cookieParts;
-            for (const auto &p : confirmQuery.queryItems()) {
-                // Skip non-cookie params like "gourl"
-                if (p.first == "gourl") continue;
-                cookieParts << QString("%1=%2").arg(p.first, p.second);
+        if (dataCode == 0) {
+            if (!confirmUrl.isEmpty() && confirmUrl.contains("ticket=")) {
+                // 新版流程：url中不再直接携带Cookie，只有一个一次性ticket，
+                // 需要请求crossDomain链接，从重定向链上每跳响应的Set-Cookie头中换取正式Cookie
+                // （参考 DDTV/Core/Account/Kernel/ByQRCode.cs）
+                LOG_INFO("扫码登录确认，通过ticket换取Cookie: {}", confirmUrl.toStdString());
+                exchangeTicket(confirmUrl, 0, {});
+            } else if (!confirmUrl.isEmpty() && confirmUrl.contains('?')) {
+                // 旧版流程回退：Cookie直接以querystring参数的形式拼接在url中
+                QUrl confirmQUrl(confirmUrl);
+                QUrlQuery confirmQuery(confirmQUrl);
+                QStringList cookieParts;
+                for (const auto &p : confirmQuery.queryItems()) {
+                    // Skip non-cookie params like "gourl"
+                    if (p.first == "gourl") continue;
+                    cookieParts << QString("%1=%2").arg(p.first, p.second);
+                }
+                QString cookieStr = cookieParts.join("; ");
+                setCookie(cookieStr);
+                LOG_INFO("Login success from URL params, cookie size={}", cookieStr.size());
+                emit qrCodePollResult("confirmed", cookieStr, {});
+            } else {
+                // 解析失败防护：记录日志而不是静默失败
+                LOG_WARN("扫码登录确认成功，但url中既无ticket也无querystring，B站返回格式可能已变更: {}",
+                         confirmUrl.toStdString());
+                emit requestError("pollQRCode", "扫码登录已确认，但无法解析Cookie，B站返回格式可能已变更");
             }
-            QString cookieStr = cookieParts.join("; ");
-            setCookie(cookieStr);
-            LOG_INFO("Login success from URL params, cookie size={}", cookieStr.size());
-            emit qrCodePollResult("confirmed", cookieStr, {});
         } else if (dataCode == 86038) {
             emit qrCodePollResult("expired", {}, {});
-        } else if (dataCode == 86091) {
+        } else if (dataCode == 86090) {
             emit qrCodePollResult("scanned", {}, {});
         } else {
             emit qrCodePollResult("waiting", {}, {});
         }
+    });
+}
+
+// === QR login: ticket → cookie exchange (new flow) ===
+
+void BilibiliApi::exchangeTicket(const QString &crossDomainUrl, int hop, const QStringList &collectedCookies)
+{
+    if (hop > 8) {
+        LOG_WARN("exchangeTicket: 重定向超过8跳，放弃换取Cookie");
+        emit requestError("exchangeTicket", "ticket换取Cookie时重定向次数过多");
+        return;
+    }
+
+    QNetworkRequest request{QUrl::fromEncoded(crossDomainUrl.toUtf8())};
+    request.setRawHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+    request.setRawHeader("Referer", "https://passport.bilibili.com");
+    // 手动跟随重定向：自动跟随只能看到最终响应的头，重定向链上每一跳的Set-Cookie都会丢失
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
+    request.setTransferTimeout(15000);
+
+    auto *reply = m_nam->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, hop, crossDomainUrl, collectedCookies]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            LOG_WARN("exchangeTicket: hop={} 请求失败: {}", hop, reply->errorString().toStdString());
+            emit requestError("exchangeTicket", reply->errorString());
+            return;
+        }
+
+        // 收集本跳响应的Set-Cookie（只取name=value部分）
+        QStringList cookies = collectedCookies;
+        for (const auto &h : reply->rawHeaderPairs()) {
+            if (QString(h.first).toLower() == "set-cookie") {
+                QString line = QString::fromUtf8(h.second).section(';', 0, 0).trimmed();
+                if (!line.section('=', 0, 0).trimmed().isEmpty())
+                    cookies << line;
+            }
+        }
+
+        // 跟随Location继续下一跳
+        int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        QByteArray location = reply->rawHeader("Location");
+        if (status >= 300 && status < 400 && !location.isEmpty()) {
+            QUrl next = QUrl::fromEncoded(crossDomainUrl.toUtf8()).resolved(QUrl::fromEncoded(location));
+            LOG_INFO("exchangeTicket: hop={} HTTP {} 继续跳转 -> {}", hop, status, next.toString().toStdString());
+            exchangeTicket(next.toString(QUrl::FullyEncoded), hop + 1, cookies);
+            return;
+        }
+
+        // 重定向链结束：按Cookie名去重（保留最后一个）
+        // 不按Domain过滤：crossDomain是biligame域名，Set-Cookie的Domain不一定是.bilibili.com，过滤会误丢
+        QMap<QString, QString> cookieMap;
+        for (const QString &line : cookies)
+            cookieMap[line.section('=', 0, 0)] = line.section('=', 1, -1);
+        QStringList cookieParts;
+        for (auto it = cookieMap.begin(); it != cookieMap.end(); ++it)
+            cookieParts << QString("%1=%2").arg(it.key(), it.value());
+        QString cookieStr = cookieParts.join("; ");
+
+        if (cookieStr.isEmpty()) {
+            LOG_WARN("exchangeTicket: 未从Set-Cookie换取到任何Cookie，B站ticket流程可能已变更");
+            emit requestError("exchangeTicket", "ticket换取Cookie失败，未获取到任何Cookie");
+            return;
+        }
+        LOG_INFO("exchangeTicket: 换取到{}个Cookie", cookieMap.size());
+        setCookie(cookieStr);
+        emit qrCodePollResult("confirmed", cookieStr, {});
     });
 }
 

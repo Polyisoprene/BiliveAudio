@@ -63,4 +63,7 @@ private:
     void mergeCookies(QNetworkReply *reply);
     void computeMixinKey(const QString &imgKey, const QString &subKey);
     QString signUrl(const QString &url) const;
+    // 新版扫码登录：poll确认后url只携带一次性ticket，
+    // 需请求crossDomain链接，从重定向链每跳的Set-Cookie头换取正式Cookie
+    void exchangeTicket(const QString &crossDomainUrl, int hop, const QStringList &collectedCookies);
 };

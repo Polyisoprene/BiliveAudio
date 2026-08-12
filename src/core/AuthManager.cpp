@@ -7,6 +7,11 @@ AuthManager::AuthManager(BilibiliApi *api, QObject *parent)
     m_pollTimer = new QTimer(this);
     m_pollTimer->setInterval(2000);
 
+    // 常规连接（不是SingleShotConnection）：否则定时器只触发一次轮询就断开
+    connect(m_pollTimer, &QTimer::timeout, this, [this] {
+        m_api->pollQRCode(m_qrcodeKey);
+    });
+
     connect(m_api, &BilibiliApi::qrCodeFetched, this, &AuthManager::onQRCodeFetched);
     connect(m_api, &BilibiliApi::qrCodePollResult, this, &AuthManager::onQRCodePolled);
     connect(m_api, &BilibiliApi::userInfoReady, this, [this](const UserInfo &info) {
@@ -42,9 +47,6 @@ void AuthManager::onQRCodeFetched(const QString &url, const QString &key)
     m_qrcodeKey = key;
     emit qrCodeReady(url, key);
 
-    QObject::connect(m_pollTimer, &QTimer::timeout, this, [this] {
-        m_api->pollQRCode(m_qrcodeKey);
-    }, Qt::SingleShotConnection);
     m_pollTimer->start();
     LOG_INFO("QR code displayed, polling started");
 }
@@ -57,6 +59,9 @@ void AuthManager::onQRCodePolled(const QString &status, const QString &cookie, c
         m_api->getUserInfo();
         setState(State::LoggedIn);
         LOG_INFO("Login successful: {}", username.toStdString());
+    } else if (status == "expired") {
+        // 二维码过期，停止轮询，等待界面刷新二维码
+        m_pollTimer->stop();
     }
 }
 
