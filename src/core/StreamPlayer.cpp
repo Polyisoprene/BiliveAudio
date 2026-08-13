@@ -125,14 +125,20 @@ void StreamPlayer::handleEvent(mpv_event *event)
         }
         if (prop->format == MPV_FORMAT_NODE && strcmp(name, "demuxer-cache-state") == 0) {
             if (auto *node = static_cast<mpv_node*>(prop->data)) {
+                // mpv 以 key-value 对填充 NODE_MAP：偶数下标是字符串 key，紧邻的是值。
+                // 值类型必须按 mpv_node.format 区分读取，否则是未定义行为。
+                if (node->format != MPV_FORMAT_NODE_MAP || !node->u.list) break;
                 auto *map = node->u.list;
-                for (int i = 0; i < map->num; i += 2) {
-                    if (map->values[i].u.string && strcmp(map->values[i].u.string, "fw-bytes") == 0) {
-                        double bytes = map->values[i+1].u.double_;
-                        if (bytes > 1024 * 1024) {
-                            emit logMessage(QString("mpv demuxer cache: %1 MB").arg(bytes / 1024 / 1024, 0, 'f', 1));
-                        }
+                for (int i = 0; i + 1 < map->num; i += 2) {
+                    if (map->values[i].format != MPV_FORMAT_STRING) continue;
+                    if (strcmp(map->values[i].u.string, "fw-bytes") != 0) continue;
+                    // fw-bytes 是 int64，不能按 u.double_ 读取
+                    if (map->values[i + 1].format != MPV_FORMAT_INT64) break;
+                    double bytes = static_cast<double>(map->values[i + 1].u.int64);
+                    if (bytes > 1024 * 1024) {
+                        emit logMessage(QString("mpv demuxer cache: %1 MB").arg(bytes / 1024 / 1024, 0, 'f', 1));
                     }
+                    break;
                 }
             }
         }

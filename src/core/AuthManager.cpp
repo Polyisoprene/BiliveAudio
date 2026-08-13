@@ -62,7 +62,8 @@ void AuthManager::onQRCodePolled(const QString &status, const QString &cookie, c
         m_pollActive = false;
         m_pollTimer->stop();
         m_api->setCookie(cookie);
-        m_api->getUserInfo();
+        // 不在这里 getUserInfo：LoginDialog 确认后会走 AppController::onLoginSuccess
+        // 拉取用户信息，这里再发一次会造成同一登录流程触发两次 nav 请求
         setState(State::LoggedIn);
         LOG_INFO("Login successful: {}", username.toStdString());
     } else if (status == "expired") {

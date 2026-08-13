@@ -61,7 +61,13 @@ void AppController::setupConnections()
     });
 
     // API errors
-    connect(m_api, &BilibiliApi::requestError, this, &AppController::error);
+    connect(m_api, &BilibiliApi::requestError, this, [this](const QString &ctx, const QString &err) {
+        // 打开房间的请求失败时复位 opening 状态，否则播放器后续的 stopped
+        // 事件会被 `if (m_openingRoom) return;` 吞掉，UI 永久卡在"打开中"
+        if (ctx == "getRoomInfo" || ctx == "getStreamUrl")
+            m_openingRoom = false;
+        emit error(ctx, err);
+    });
 
     // Room info → stream URL
     connect(m_api, &BilibiliApi::roomInfoReady, this, [this](qint64 roomId, qint64 uid, const QString &title, qint64 cid) {
@@ -73,6 +79,7 @@ void AppController::setupConnections()
     // Stream URL → play + connect danmaku
     connect(m_api, &BilibiliApi::streamUrlReady, this, [this](qint64 roomId, const QString &url) {
         if (url.isEmpty()) {
+            m_openingRoom = false;
             emit error("streamUrl", "未获取到流地址");
             return;
         }
@@ -94,6 +101,8 @@ void AppController::setupConnections()
     });
 
     connect(m_player, &StreamPlayer::error, this, [this](const QString &msg) {
+        // 播放器加载失败也视为打开房间流程结束
+        m_openingRoom = false;
         emit playbackError(msg);
     });
 
@@ -130,7 +139,10 @@ void AppController::restoreSession()
     int vol = settings.volume();
     m_player->setVolume(vol);
 
-    connect(m_api, &BilibiliApi::userInfoReady, this, &AppController::onUserInfoReady, Qt::SingleShotConnection);
+    // 用普通连接而非 SingleShotConnection：SingleShot 只在启动 restoreSession 时
+    // 生效一次，logout 后重新登录（切换账号）时 onUserInfoReady 不再触发，
+    // 导致 LiveMonitor 永远不启动。onUserInfoReady 内部是幂等的（重复 start 无害）。
+    connect(m_api, &BilibiliApi::userInfoReady, this, &AppController::onUserInfoReady);
 }
 
 void AppController::onUserInfoReady(const UserInfo &info)
@@ -186,12 +198,12 @@ void AppController::closeRoom()
 
 void AppController::togglePlayPause()
 {
-    if (m_player->isPlaying()) {
-        if (m_player->isPlaying())
-            m_player->pause();
-        else
-            m_player->resume();
-    }
+    // 播放中→暂停；暂停中→恢复。
+    // （原来的外层 if (isPlaying()) 导致暂停状态下永远走不到 resume()）
+    if (m_player->isPlaying())
+        m_player->pause();
+    else
+        m_player->resume();
 }
 
 int AppController::volume() const { return m_player->volume(); }

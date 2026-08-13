@@ -8,6 +8,12 @@ LiveMonitor::LiveMonitor(BilibiliApi *api, QObject *parent)
 
     connect(m_api, &BilibiliApi::liveFollowedReady, this, &LiveMonitor::onLiveFollowed);
     connect(m_pollTimer, &QTimer::timeout, this, &LiveMonitor::refreshNow);
+    // fetchLiveFollowed 失败时只发 requestError 而不触发 liveFollowedReady，
+    // 若不在此复位 m_fetching，轮询会永久停摆（开播监控失效直到重启）
+    connect(m_api, &BilibiliApi::requestError, this, [this](const QString &ctx, const QString &) {
+        if (ctx == "fetchLiveFollowed")
+            m_fetching = false;
+    });
 }
 
 void LiveMonitor::start(int intervalSec)
